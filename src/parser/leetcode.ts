@@ -19,8 +19,8 @@ export class LeetCodeAdapter implements PlatformAdapter {
       if (!latestAccepted) return null;
 
       // 2. Check if this is a new submission we haven't processed yet
-      const lastProcessedId = await this.getLastProcessedId();
-      if (lastProcessedId === latestAccepted.id) {
+      const alreadyProcessed = await this.isProcessed(latestAccepted.id);
+      if (alreadyProcessed) {
         return null; // Already processed
       }
 
@@ -28,8 +28,8 @@ export class LeetCodeAdapter implements PlatformAdapter {
       const details = await this.fetchSubmissionDetails(latestAccepted.id);
       if (!details) return null;
 
-      // 4. Update last processed id
-      await this.setLastProcessedId(latestAccepted.id);
+      // 4. Update processed ids
+      await this.markAsProcessed(latestAccepted.id);
 
       const difficultyMap: Record<string, Difficulty> = {
         'Easy': 'Easy',
@@ -93,23 +93,32 @@ export class LeetCodeAdapter implements PlatformAdapter {
     return '';
   }
 
-  private async getLastProcessedId(): Promise<string | null> {
+  private async isProcessed(id: string): Promise<boolean> {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      const result = await chrome.storage.local.get('leetcode_last_processed');
-      return result.leetcode_last_processed || null;
+      const result = await chrome.storage.local.get('leetcode_processed_ids');
+      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
+      return !!processed[id];
     }
-    return localStorage.getItem('leetcode_last_processed');
+    const processedStr = localStorage.getItem('leetcode_processed_ids');
+    const processed = processedStr ? (JSON.parse(processedStr) as Record<string, boolean>) : {};
+    return !!processed[id];
   }
 
-  private async setLastProcessedId(id: string): Promise<void> {
+  private async markAsProcessed(id: string): Promise<void> {
     if (typeof chrome !== 'undefined' && chrome.storage) {
-      await chrome.storage.local.set({ leetcode_last_processed: id });
+      const result = await chrome.storage.local.get('leetcode_processed_ids');
+      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
+      processed[id] = true;
+      await chrome.storage.local.set({ leetcode_processed_ids: processed });
     } else {
-      localStorage.setItem('leetcode_last_processed', id);
+      const processedStr = localStorage.getItem('leetcode_processed_ids');
+      const processed = processedStr ? (JSON.parse(processedStr) as Record<string, boolean>) : {};
+      processed[id] = true;
+      localStorage.setItem('leetcode_processed_ids', JSON.stringify(processed));
     }
   }
 
-  private async queryGraphQL<T>(query: string, variables: Record<string, any>): Promise<T> {
+  private async queryGraphQL<T>(query: string, variables: Record<string, unknown>): Promise<T> {
     const response = await fetch('https://leetcode.com/graphql', {
       method: 'POST',
       headers: {
