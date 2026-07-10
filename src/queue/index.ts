@@ -2,24 +2,55 @@ import { Submission } from '../parser/types';
 import { GitHubClient } from '../github/client';
 import { ReadmeGenerator } from '../readme';
 import { storage } from '../storage';
-
+import { updateReadmeTable } from './readmeTable';
 export class CommitQueue {
   private isProcessing = false;
+  private enqueuePromise: Promise<void> = Promise.resolve();
 
   /**
-   * Adds a submission to the queue and processes it.
+   * Adds a submission to the queue.
+   * If syncOnAccept is enabled, processes immediately.
+   * Otherwise, the submission stays pending until manual sync or the periodic alarm.
    */
   async enqueue(submission: Submission): Promise<void> {
+    this.enqueuePromise = this.enqueuePromise.then(() => this.enqueueInternal(submission));
+    return this.enqueuePromise;
+  }
+
+  private async enqueueInternal(submission: Submission): Promise<void> {
     const settings = await storage.getSettings();
     
-    // Check for duplicates
+    // Check for duplicates of the exact same submission ID
     if (settings.commitQueue.includes(submission.id)) {
       console.log(`Submission ${submission.id} is already in the queue.`);
       return;
     }
 
+    // Deduplicate: Find and remove any existing pending submission for the same problem slug
+    const cleanedQueue: string[] = [];
+    const keysToRemove: string[] = [];
+    
+    for (const id of settings.commitQueue) {
+      const data = await this.getSubmissionData(id);
+      if (data && data.problem && data.problem.slug === submission.problem.slug) {
+        console.log(`Deduplicating: removing older pending submission ${id} for problem ${submission.problem.slug}`);
+        keysToRemove.push(`sub_${id}`);
+      } else {
+        cleanedQueue.push(id);
+      }
+    }
+
+    // Remove the old submission data from storage
+    if (keysToRemove.length > 0) {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.remove(keysToRemove);
+      } else {
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      }
+    }
+
     // Add to queue
-    const updatedQueue = [...settings.commitQueue, submission.id];
+    const updatedQueue = [...cleanedQueue, submission.id];
     await storage.updateSettings({ commitQueue: updatedQueue });
 
     // Store submission details temporarily
@@ -29,8 +60,14 @@ export class CommitQueue {
       localStorage.setItem(`sub_${submission.id}`, JSON.stringify(submission));
     }
 
-    // Process queue
-    await this.processQueue();
+    // Only process immediately if instant sync is enabled
+    if (settings.syncOnAccept) {
+      await this.processQueue();
+    } else {
+      console.log(`Instant sync is OFF. Submission "${submission.problem.title}" queued (${updatedQueue.length} pending).`);
+      // Notify the popup that the queue updated so the count refreshes
+      this.notifyQueueUpdated(updatedQueue.length, submission.problem.title);
+    }
   }
 
   /**
@@ -50,10 +87,13 @@ export class CommitQueue {
 
       const client = new GitHubClient(settings.githubToken);
       const pendingIds = [...settings.commitQueue];
+      console.log(`Starting queue processing. Found ${pendingIds.length} pending submissions.`);
 
       for (const submissionId of pendingIds) {
+        console.log(`Processing submission ID: ${submissionId}`);
         const submission = await this.getSubmissionData(submissionId);
         if (!submission) {
+          console.warn(`Submission data for ID ${submissionId} is missing or corrupt. Removing from queue.`);
           // Clean up orphan ID
           await this.removeIdFromQueue(submissionId);
           continue;
@@ -66,8 +106,10 @@ export class CommitQueue {
           await this.removeIdFromQueue(submissionId);
           await this.clearSubmissionData(submissionId);
           console.log(`Successfully synced submission ${submissionId}`);
+          this.notifySyncResult(submission.problem.title, true);
         } catch (error) {
           console.error(`Failed to upload submission ${submissionId}:`, error);
+          this.notifySyncResult(submission.problem.title, false, (error as Error).message);
           // Stop queue processing and keep it in the queue for retries
           break;
         }
@@ -93,12 +135,26 @@ export class CommitQueue {
     // Generate content
     const readmeContent = ReadmeGenerator.generate(problem, submission);
 
+    // Fetch existing root README.md
+    let existingReadme: string | null = null;
+    try {
+      const readmeFile = await client.getFileContent(repoFullName, 'README.md');
+      if (readmeFile) {
+        existingReadme = readmeFile.content;
+      }
+    } catch (e) {
+      // Ignore error and initialize new README
+    }
+
+    const updatedReadme = updateReadmeTable(existingReadme, problem, submission);
+
     // Atomic upload containing both files in a single Git commit
     await client.createCommit(repoFullName, {
       message: `feat(leetcode): add solution for ${problem.title} [${submission.language}]`,
       files: [
         { path: codePath, content: submission.code },
         { path: readmePath, content: readmeContent },
+        { path: 'README.md', content: updatedReadme },
       ],
     });
   }
@@ -140,4 +196,56 @@ export class CommitQueue {
     if (lang.includes('csharp') || lang === 'cs' || lang === 'c#') return 'cs';
     return 'txt';
   }
+
+  private notifySyncResult(problemTitle: string, success: boolean, errorMessage?: string) {
+    if (typeof chrome !== 'undefined') {
+      if (chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({
+          action: success ? 'SYNC_SUCCESS' : 'SYNC_FAILED',
+          payload: { problemTitle, error: errorMessage }
+        }).catch(() => {
+          // Ignore errors when popup is closed and no listener exists
+        });
+      }
+
+      if (chrome.notifications && chrome.notifications.create) {
+        const DEFAULT_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzEwYjk4MSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiBmb250LXNpemU9IjcwIiBmaWxsPSIjZmZmZmZmIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkM8L3RleHQ+PC9zdmc+';
+        chrome.notifications.create(`sync_${Date.now()}`, {
+          type: 'basic',
+          iconUrl: DEFAULT_ICON,
+          title: success ? 'CodeSync - Sync Success' : 'CodeSync - Sync Failed',
+          message: success 
+            ? `Successfully synced "${problemTitle}" to GitHub!`
+            : `Failed to sync "${problemTitle}": ${errorMessage || 'Unknown error'}`,
+          priority: 2
+        });
+      }
+    }
+  }
+
+  private notifyQueueUpdated(queueLength: number, problemTitle: string) {
+    if (typeof chrome !== 'undefined') {
+      if (chrome.runtime && chrome.runtime.sendMessage) {
+        chrome.runtime.sendMessage({
+          action: 'SUBMISSION_QUEUED',
+          payload: { problemTitle, queueLength }
+        }).catch(() => {
+          // Ignore errors when popup is closed
+        });
+      }
+
+      if (chrome.notifications && chrome.notifications.create) {
+        const DEFAULT_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzEwYjk4MSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiBmb250LXNpemU9IjcwIiBmaWxsPSIjZmZmZmZmIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkM8L3RleHQ+PC9zdmc+';
+        chrome.notifications.create(`queued_${Date.now()}`, {
+          type: 'basic',
+          iconUrl: DEFAULT_ICON,
+          title: 'CodeSync - Submission Queued',
+          message: `"${problemTitle}" added to queue (${queueLength} pending). Sync manually or wait for auto-sync.`,
+          priority: 1
+        });
+      }
+    }
+  }
+
+
 }

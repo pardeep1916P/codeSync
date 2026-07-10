@@ -5,7 +5,9 @@
   "description": "Synchronize accepted coding problems to GitHub",
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "identity",
+    "notifications"
   ],
   "host_permissions": [
     "https://leetcode.com/*",

@@ -1,5 +1,6 @@
 import { CommitQueue } from '../queue';
 import { Submission } from '../parser/types';
+import { storage } from '../storage';
 
 const queue = new CommitQueue();
 
@@ -14,8 +15,15 @@ chrome.runtime.onInstalled.addListener(() => {
 // Listen for alarm triggers
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'process-queue-alarm') {
-    console.log('Alarm triggered: processing queue...');
-    queue.processQueue().catch(console.error);
+    console.log('Alarm triggered: checking settings...');
+    storage.getSettings().then((settings) => {
+      if (settings.syncOnAccept) {
+        console.log('Instant sync is ON. Processing queue...');
+        queue.processQueue().catch(console.error);
+      } else {
+        console.log('Alarm: Instant sync is OFF. Skipping auto-processing.');
+      }
+    }).catch(console.error);
   }
 });
 
@@ -42,4 +50,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     
     return true;
   }
+
+  return false;
 });
