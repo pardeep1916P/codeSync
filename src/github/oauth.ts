@@ -21,6 +21,7 @@ export class GitHubOAuth {
       scopes
     )}&redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
+  
 
   async authenticate(): Promise<string | null> {
     if (typeof chrome === 'undefined' || !chrome.identity) {

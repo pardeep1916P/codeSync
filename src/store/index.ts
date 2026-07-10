@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { storage, UserSettings } from '../storage';
 import { GitHubClient } from '../github/client';
 import { GitHubRepo, GitHubUser } from '../github/types';
+import { GitHubOAuth } from '../github/oauth';
 
 interface AppState extends UserSettings {
   isLoading: boolean;
@@ -12,6 +13,7 @@ interface AppState extends UserSettings {
   // Actions
   initialize: () => Promise<void>;
   login: (token: string) => Promise<void>;
+  loginOAuth: () => Promise<void>;
   logout: () => Promise<void>;
   selectRepo: (repoFullName: string) => Promise<void>;
   setSyncOnAccept: (value: boolean) => Promise<void>;
@@ -79,6 +81,41 @@ export const useStore = create<AppState>((set, get) => ({
         repositories,
         isLoading: false,
       });
+    } catch (e) {
+      set({ error: (e as Error).message, isLoading: false });
+    }
+  },
+
+  loginOAuth: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const oauth = new GitHubOAuth({
+        clientId: 'Ov23wjd710s2cCoSyNc1', // Dummy App Client ID placeholder
+        clientSecret: 'dummy_secret_placeholder',
+        scopes: ['repo'],
+      });
+      const token = await oauth.authenticate();
+      if (token) {
+        // Reuse client login logic
+        const client = new GitHubClient(token);
+        const user = await client.getUser();
+        const repositories = await client.getRepositories();
+
+        await storage.updateSettings({
+          githubToken: token,
+          githubUser: user.login,
+        });
+
+        set({
+          githubToken: token,
+          githubUser: user.login,
+          user,
+          repositories,
+          isLoading: false,
+        });
+      } else {
+        set({ isLoading: false, error: 'OAuth authentication failed or returned empty token' });
+      }
     } catch (e) {
       set({ error: (e as Error).message, isLoading: false });
     }
