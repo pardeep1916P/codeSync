@@ -21,8 +21,6 @@
 const processedSubmissionIds = new Set<string>();
 
 async function isAlreadyProcessed(id: string): Promise<boolean> {
-  if (processedSubmissionIds.has(id)) return true;
-
   if (typeof chrome !== 'undefined' && chrome.storage) {
     const result = await chrome.storage.local.get('leetcode_processed_ids');
     const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
