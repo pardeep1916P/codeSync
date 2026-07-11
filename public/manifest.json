@@ -13,7 +13,8 @@
     "storage",
     "alarms",
     "identity",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
     "https://*.leetcode.com/*",

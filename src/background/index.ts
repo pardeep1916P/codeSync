@@ -5,11 +5,35 @@ import { storage } from '../storage';
 const queue = new CommitQueue();
 
 // Listen for runtime extension installation
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('CodeSync extension installed.');
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('CodeSync extension installed/updated.');
   
   // Set up an alarm to process the queue periodically (every 5 minutes)
   chrome.alarms.create('process-queue-alarm', { periodInMinutes: 5 });
+
+  // Programmatically inject content script into all active LeetCode tabs
+  try {
+    const tabs = await chrome.tabs.query({
+      url: [
+        '*://*.leetcode.com/*',
+        '*://leetcode.com/*',
+        '*://*.leetcode.cn/*',
+        '*://leetcode.cn/*'
+      ]
+    });
+    for (const tab of tabs) {
+      if (tab.id && tab.url && !tab.url.startsWith('chrome://')) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }).catch((err) => {
+          console.warn(`Failed to inject content script into tab ${tab.id}:`, err);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error during programmatic script injection:', err);
+  }
 });
 
 // Listen for alarm triggers

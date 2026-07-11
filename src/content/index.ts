@@ -20,11 +20,24 @@
 // ── Processed submissions tracker ──────────────────────────────────────────
 const processedSubmissionIds = new Set<string>();
 
+function isContextInvalidated(): boolean {
+  try {
+    return !chrome.runtime || !chrome.runtime.id;
+  } catch (e) {
+    return true;
+  }
+}
+
 async function isAlreadyProcessed(id: string): Promise<boolean> {
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    const result = await chrome.storage.local.get('leetcode_processed_ids');
-    const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
-    return !!processed[id];
+  if (isContextInvalidated()) return false;
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const result = await chrome.storage.local.get('leetcode_processed_ids');
+      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
+      return !!processed[id];
+    }
+  } catch (e) {
+    // Ignore error
   }
   return false;
 }
@@ -32,11 +45,16 @@ async function isAlreadyProcessed(id: string): Promise<boolean> {
 async function markAsProcessed(id: string): Promise<void> {
   processedSubmissionIds.add(id);
 
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    const result = await chrome.storage.local.get('leetcode_processed_ids');
-    const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
-    processed[id] = true;
-    await chrome.storage.local.set({ leetcode_processed_ids: processed });
+  if (isContextInvalidated()) return;
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const result = await chrome.storage.local.get('leetcode_processed_ids');
+      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
+      processed[id] = true;
+      await chrome.storage.local.set({ leetcode_processed_ids: processed });
+    }
+  } catch (e) {
+    // Ignore error
   }
 }
 
@@ -90,6 +108,13 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<sup>([^<]+)<\/sup>/g, '^$1');
   text = text.replace(/<sub>([^<]+)<\/sub>/g, '_$1');
   
+  // Code blocks (Run early so we don't convert tags inside pre blocks to markdown formatting)
+  text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/g, (_, code) => {
+    // Strip inner HTML tags from preformatted text so it looks clean inside the code block
+    const cleanCode = code.replace(/<[^>]*>/g, '');
+    return `\n\`\`\`\n${cleanCode}\n\`\`\`\n`;
+  });
+
   // Headers
   text = text.replace(/<h[1-6]>(.*?)<\/h[1-6]>/g, '### $1\n');
   
@@ -98,14 +123,6 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<em[^>]*>(.*?)<\/em>/g, '_$1_');
   text = text.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
   text = text.replace(/<i[^>]*>(.*?)<\/i>/g, '_$1_');
-  
-  // Code blocks
-  // Replace <pre> blocks by extracting their content and cleaning HTML tags inside them
-  text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/g, (_, code) => {
-    // Strip inner HTML tags from preformatted text so it looks clean inside the code block
-    const cleanCode = code.replace(/<[^>]*>/g, '');
-    return `\n\`\`\`\n${cleanCode}\n\`\`\`\n`;
-  });
   
   // Inline code
   text = text.replace(/<code[^>]*>(.*?)<\/code>/g, '`$1`');
@@ -125,9 +142,10 @@ function htmlToMarkdown(html: string): string {
   
   // Images
   text = text.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/g, (match, src) => {
+    const absoluteSrc = src.startsWith('/') ? `https://leetcode.com${src}` : src;
     const altMatch = match.match(/alt=["']([^"']+)["']/);
     const alt = altMatch ? altMatch[1] : 'image';
-    return `![${alt}](${src})`;
+    return `![${alt}](${absoluteSrc})`;
   });
 
   // Clean up remaining tags, entities, and whitespace
@@ -139,6 +157,7 @@ function htmlToMarkdown(html: string): string {
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/<[^>]*>/g, '') // strip any other remaining tags
+    .replace(/\n{3,}/g, '\n\n') // collapse multiple newlines
     .trim();
     
   return text;
@@ -171,6 +190,7 @@ interface SubmissionData {
 }
 
 async function handleAcceptedSubmission(data: SubmissionData) {
+  if (isContextInvalidated()) return;
   const subId = data.submissionId;
   if (!subId) return;
 
@@ -270,7 +290,11 @@ function initContentScript() {
   (document.head || document.documentElement).appendChild(script);
 
   // Listen for messages from the injected page script
-  window.addEventListener('message', async (event) => {
+  const messageListener = async (event: MessageEvent) => {
+    if (isContextInvalidated()) {
+      window.removeEventListener('message', messageListener);
+      return;
+    }
     if (event.source !== window) return;
 
     if (event.data?.type === 'CODESYNC_SUBMISSION_ACCEPTED') {
@@ -307,11 +331,17 @@ function initContentScript() {
         });
       }
     }
-  });
+  };
+
+  window.addEventListener('message', messageListener);
 
   // ── Fallback: DOM-based detection (runs as backup every 5s) ────────────
   // This covers edge cases where the network interception might miss something.
-  setInterval(async () => {
+  const intervalId = setInterval(async () => {
+    if (isContextInvalidated()) {
+      clearInterval(intervalId);
+      return;
+    }
     try {
       const successSelectors = [
         '[data-e2e-locator="submission-result"]',
