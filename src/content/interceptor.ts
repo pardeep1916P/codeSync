@@ -4,7 +4,7 @@ if (!(window as any).__codeSyncInjected) {
   const originalFetch = window.fetch;
 
   window.fetch = async function(...args) {
-    const response = await originalFetch.apply(this, args);
+    const response = await originalFetch(...args);
 
     try {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : '');
