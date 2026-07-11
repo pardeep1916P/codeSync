@@ -57,6 +57,9 @@ async function fetchSubmissionDetails(submissionId: string) {
           titleSlug
           difficulty
           content
+          topicTags {
+            name
+          }
         }
       }
     }
@@ -80,27 +83,57 @@ async function fetchSubmissionDetails(submissionId: string) {
 // ── HTML to Markdown converter ─────────────────────────────────────────────
 function htmlToMarkdown(html: string): string {
   if (!html) return '';
-  return html
-    .replace(/<p>/g, '')
-    .replace(/<\/p>/g, '\n\n')
-    .replace(/<code>/g, '`')
-    .replace(/<\/code>/g, '`')
-    .replace(/<pre>/g, '\n```\n')
-    .replace(/<\/pre>/g, '\n```\n')
-    .replace(/<strong>/g, '**')
-    .replace(/<\/strong>/g, '**')
-    .replace(/<em>/g, '_')
-    .replace(/<\/em>/g, '_')
-    .replace(/<ul>/g, '\n')
-    .replace(/<\/ul>/g, '\n')
-    .replace(/<li>/g, '- ')
-    .replace(/<\/li>/g, '\n')
+  
+  let text = html;
+  
+  // Math notation: sup and sub
+  text = text.replace(/<sup>([^<]+)<\/sup>/g, '^$1');
+  text = text.replace(/<sub>([^<]+)<\/sub>/g, '_$1');
+  
+  // Headers
+  text = text.replace(/<h[1-6]>(.*?)<\/h[1-6]>/g, '### $1\n');
+  
+  // Bold/Italics
+  text = text.replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**');
+  text = text.replace(/<em[^>]*>(.*?)<\/em>/g, '_$1_');
+  text = text.replace(/<b[^>]*>(.*?)<\/b>/g, '**$1**');
+  text = text.replace(/<i[^>]*>(.*?)<\/i>/g, '_$1_');
+  
+  // Code blocks
+  // Replace <pre> blocks by extracting their content and cleaning HTML tags inside them
+  text = text.replace(/<pre[^>]*>([\s\S]*?)<\/pre>/g, (_, code) => {
+    // Strip inner HTML tags from preformatted text so it looks clean inside the code block
+    const cleanCode = code.replace(/<[^>]*>/g, '');
+    return `\n\`\`\`\n${cleanCode}\n\`\`\`\n`;
+  });
+  
+  // Inline code
+  text = text.replace(/<code[^>]*>(.*?)<\/code>/g, '`$1`');
+  
+  // Paragraphs and breaks
+  text = text.replace(/<p[^>]*>/g, '');
+  text = text.replace(/<\/p>/g, '\n\n');
+  text = text.replace(/<br\s*\/?>/g, '\n');
+  
+  // Lists
+  text = text.replace(/<ul[^>]*>/g, '\n');
+  text = text.replace(/<\/ul>/g, '\n');
+  text = text.replace(/<ol[^>]*>/g, '\n');
+  text = text.replace(/<\/ol>/g, '\n');
+  text = text.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
+  
+  // Clean up remaining tags, entities, and whitespace
+  text = text
     .replace(/&nbsp;/g, ' ')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
-    .replace(/<[^>]*>/g, '')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/<[^>]*>/g, '') // strip any other remaining tags
     .trim();
+    
+  return text;
 }
 
 // ── Get question slug from URL ─────────────────────────────────────────────
@@ -125,6 +158,7 @@ interface SubmissionData {
     titleSlug: string;
     difficulty: string;
     content: string;
+    topicTags?: { name: string }[];
   } | null;
 }
 
@@ -134,14 +168,12 @@ async function handleAcceptedSubmission(data: SubmissionData) {
 
   // Deduplicate synchronously in-memory first to prevent race conditions from simultaneous triggers
   if (processedSubmissionIds.has(subId)) {
-    console.log(`[CodeSync] Submission ${subId} already processed (in-memory lock), skipping.`);
     return;
   }
   processedSubmissionIds.add(subId);
 
   const alreadyDone = await isAlreadyProcessed(subId);
   if (alreadyDone) {
-    console.log(`[CodeSync] Submission ${subId} already processed (storage checked), skipping.`);
     return;
   }
 
@@ -190,7 +222,7 @@ async function handleAcceptedSubmission(data: SubmissionData) {
       slug: question.titleSlug || getQuestionSlug(),
       difficulty: difficultyMap[question.difficulty] || 'Medium',
       description: htmlToMarkdown(question.content),
-      tags: [],
+      tags: (question.topicTags || []).map((t: any) => t.name),
       url: `https://leetcode.com/problems/${question.titleSlug || getQuestionSlug()}/`,
     },
     language: lang,
