@@ -46,6 +46,40 @@ export async function computeGitSha(content: string): Promise<string> {
   return hashArray.map((b: any) => b.toString(16).padStart(2, '0')).join('');
 }
 
+const DISPLAY_LANGUAGES: Record<string, string> = {
+  cpp: 'C++',
+  'c++': 'C++',
+  java: 'Java',
+  python: 'Python',
+  python3: 'Python',
+  py: 'Python',
+  javascript: 'JavaScript',
+  js: 'JavaScript',
+  typescript: 'TypeScript',
+  ts: 'TypeScript',
+  golang: 'Go',
+  go: 'Go',
+  rust: 'Rust',
+  rs: 'Rust',
+  c: 'C',
+  csharp: 'C#',
+  'c#': 'C#',
+  ruby: 'Ruby',
+  rb: 'Ruby',
+  swift: 'Swift',
+  kotlin: 'Kotlin',
+  kt: 'Kotlin',
+  scala: 'Scala',
+  php: 'PHP',
+  sql: 'SQL',
+  mysql: 'MySQL'
+};
+
+function getLanguageDisplayName(lang: string): string {
+  const clean = lang.toLowerCase().trim();
+  return DISPLAY_LANGUAGES[clean] || lang;
+}
+
 export function updateReadmeTable(
   existingContent: string | null,
   problem: Problem,
@@ -55,6 +89,7 @@ export function updateReadmeTable(
   const fileExt = getFileExtension(submission.language);
   const solutionPath = `./${problem.slug}/${problem.slug}.${fileExt}`;
   const problemUrl = problem.url || `https://leetcode.com/problems/${problem.slug}/`;
+  const langDisplayName = getLanguageDisplayName(submission.language);
 
   let content = existingContent || `# CodeSync Solutions\n\nMy coding solutions synced automatically using CodeSync.\n`;
   if (!content.endsWith('\n')) {
@@ -63,68 +98,118 @@ export function updateReadmeTable(
 
   const tags = problem.tags && problem.tags.length > 0 ? problem.tags : ['General'];
 
+  // Parse existing content into prefix and sections
+  const lines = content.split('\n');
+  const prefixLines: string[] = [];
+  interface Section {
+    heading: string;
+    title: string;
+    lines: string[];
+  }
+  const sections: Section[] = [];
+  let currentSection: Section | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (currentSection) {
+        sections.push(currentSection);
+      }
+      currentSection = {
+        heading: line,
+        title: line.replace('## ', '').trim(),
+        lines: []
+      };
+    } else if (currentSection) {
+      currentSection.lines.push(line);
+    } else {
+      prefixLines.push(line);
+    }
+  }
+  if (currentSection) {
+    sections.push(currentSection);
+  }
+
+  // Helper to parse language links from a cell/column
+  function parseLanguageLinks(cellContent: string): { name: string; href: string }[] {
+    const links: { name: string; href: string }[] = [];
+    const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    let m;
+    while ((m = regex.exec(cellContent)) !== null) {
+      links.push({ name: m[1], href: m[2] });
+    }
+    return links;
+  }
+
+  // Helper to format language links
+  function formatLanguageLinks(links: { name: string; href: string }[]): string {
+    return links
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(link => `[${link.name}](${link.href})`)
+      .join(', ');
+  }
+
   for (const tag of tags) {
     const sectionHeader = `## ${tag}`;
-    const header = `| # | Problem | Platform | Solution |`;
+    const header = `| # | Problem | Platform | Language |`;
     const separator = `| :--- | :--- | :--- | :--- |`;
     const targetPattern = `[${problem.title}]`;
 
-    const lines = content.split('\n');
-    const headingIndex = lines.findIndex(line => line.trim().toLowerCase() === sectionHeader.toLowerCase());
+    let section = sections.find(s => s.title.toLowerCase() === tag.toLowerCase());
 
-    if (headingIndex === -1) {
-      // Create section at the end
-      let appendStr = `\n${sectionHeader}\n\n`;
-      appendStr += `${header}\n${separator}\n`;
-      appendStr += `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |\n`;
-      content = lines.join('\n').trimEnd() + appendStr;
-      continue;
-    }
-
-    // Section exists, find table start and next section start
-    let tableStartIndex = -1;
-    let nextSectionIndex = lines.length;
-
-    for (let i = headingIndex + 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (line.startsWith('#')) {
-        nextSectionIndex = i;
-        break;
-      }
-      if (line.includes('| # | Problem |') && tableStartIndex === -1) {
-        tableStartIndex = i;
-      }
-    }
-
-    if (tableStartIndex === -1 || tableStartIndex >= nextSectionIndex) {
-      // Table doesn't exist under heading. Insert it.
-      const newTableLines = [
+    if (!section) {
+      // Create new section
+      const sectionLines = [
         '',
         header,
         separator,
-        `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |`,
+        `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [${langDisplayName}](${solutionPath}) |`,
         ''
       ];
-      lines.splice(headingIndex + 1, 0, ...newTableLines);
-      content = lines.join('\n');
+      section = {
+        heading: sectionHeader,
+        title: tag,
+        lines: sectionLines
+      };
+      sections.push(section);
       continue;
     }
 
-    // Table exists, find last row
+    // Section exists. Search for the table and update or append.
+    let tableStartIndex = -1;
+    for (let i = 0; i < section.lines.length; i++) {
+      const line = section.lines[i].trim();
+      if (line.includes('| # | Problem |')) {
+        tableStartIndex = i;
+        break;
+      }
+    }
+
+    if (tableStartIndex === -1) {
+      // Table doesn't exist in section. Insert one.
+      const newTable = [
+        header,
+        separator,
+        `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [${langDisplayName}](${solutionPath}) |`,
+        ''
+      ];
+      section.lines.push(...newTable);
+      continue;
+    }
+
+    // Find table end
     let lastRowIndex = tableStartIndex + 1;
-    while (lastRowIndex + 1 < nextSectionIndex && lines[lastRowIndex + 1].trim().startsWith('|')) {
+    while (lastRowIndex + 1 < section.lines.length && section.lines[lastRowIndex + 1].trim().startsWith('|')) {
       lastRowIndex++;
     }
 
-    // Check for duplicates in this specific table
-    let alreadyExists = false;
+    // Check if the problem already exists in this table
+    let problemRowIndex = -1;
     let maxIndex = 0;
 
     for (let i = tableStartIndex + 2; i <= lastRowIndex; i++) {
-      const line = lines[i];
+      const line = section.lines[i];
       if (line.includes(targetPattern)) {
-        alreadyExists = true;
-        break;
+        problemRowIndex = i;
       }
       const match = line.match(/^\|\s*(\d+)\s*\|/);
       if (match) {
@@ -135,16 +220,43 @@ export function updateReadmeTable(
       }
     }
 
-    if (alreadyExists) {
-      continue; // Skip this category
+    if (problemRowIndex !== -1) {
+      // Row exists! Parse and update the Language column.
+      const line = section.lines[problemRowIndex];
+      const parts = line.split('|');
+      if (parts.length >= 5) {
+        const existingLinks = parseLanguageLinks(parts[4]);
+        const exists = existingLinks.some(l => l.name.toLowerCase() === langDisplayName.toLowerCase());
+        if (!exists) {
+          existingLinks.push({ name: langDisplayName, href: solutionPath });
+        } else {
+          const idx = existingLinks.findIndex(l => l.name.toLowerCase() === langDisplayName.toLowerCase());
+          existingLinks[idx].href = solutionPath;
+        }
+        parts[4] = ` ${formatLanguageLinks(existingLinks)} `;
+        section.lines[problemRowIndex] = parts.join('|');
+      }
+    } else {
+      // Row doesn't exist, append new row to table
+      const nextIndex = maxIndex + 1;
+      const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [${langDisplayName}](${solutionPath}) |`;
+      section.lines.splice(lastRowIndex + 1, 0, newRow);
     }
-
-    const nextIndex = maxIndex + 1;
-    const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |`;
-    
-    lines.splice(lastRowIndex + 1, 0, newRow);
-    content = lines.join('\n');
   }
 
-  return content;
+  // Sort sections alphabetically by title
+  sections.sort((a, b) => a.title.localeCompare(b.title));
+
+  // Rebuild the final content
+  let finalContent = prefixLines.join('\n').trimEnd();
+  if (finalContent) {
+    finalContent += '\n\n';
+  }
+
+  for (const s of sections) {
+    finalContent += s.heading + '\n';
+    finalContent += s.lines.join('\n').trimEnd() + '\n\n';
+  }
+
+  return finalContent.trimEnd() + '\n';
 }

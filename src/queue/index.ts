@@ -129,14 +129,23 @@ export class CommitQueue {
   ): Promise<void> {
     const problem = submission.problem;
     const fileExtension = this.getFileExtension(submission.language);
-    
-    // Construct paths
     const problemFolder = `${problem.slug}`;
     const codePath = `${problemFolder}/${problem.slug}.${fileExtension}`;
     const readmePath = `${problemFolder}/README.md`;
 
+    // Fetch existing individual README.md if it exists
+    let existingProblemReadme: string | null = null;
+    try {
+      const readmeFile = await client.getFileContent(repoFullName, readmePath);
+      if (readmeFile) {
+        existingProblemReadme = readmeFile.content;
+      }
+    } catch (e) {
+      // Ignore if it doesn't exist yet
+    }
+
     // Generate content
-    const readmeContent = ReadmeGenerator.generate(problem, submission);
+    const readmeContent = ReadmeGenerator.generate(problem, submission, existingProblemReadme);
 
     // Fetch existing root README.md
     let existingReadme: string | null = null;
@@ -181,12 +190,17 @@ export class CommitQueue {
     const problemReadmeSha = await computeGitSha(readmeContent);
     const rootReadmeSha = await computeGitSha(updatedReadme);
 
-    // Update shas mapping
+    // Update shas mapping by merging to keep other language files for this problem
     stats.shas[problem.slug] = {
+      ...(stats.shas[problem.slug] || {}),
       [`${problem.slug}.${fileExtension}`]: codeSha,
-      "README.md": problemReadmeSha,
-      "difficulty": problem.difficulty.toLowerCase()
+      "README.md": problemReadmeSha
     };
+
+    // Remove "difficulty" field from this problem's shas if it exists
+    if (stats.shas[problem.slug]) {
+      delete stats.shas[problem.slug]["difficulty"];
+    }
 
     stats.shas["README.md"] = {
       "": rootReadmeSha

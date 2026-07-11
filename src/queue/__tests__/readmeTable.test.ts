@@ -29,17 +29,24 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     expect(sha).toBe('95d09f2b10159347eece71399a7e2e907ea3df4f');
   });
 
-  it('should initialize a README with tag headings and table', () => {
+  it('should initialize a README with tag headings and table sorted alphabetically', () => {
     const result = updateReadmeTable(null, mockProblem, mockSubmission);
     expect(result).toContain('# CodeSync Solutions');
-    expect(result).toContain('## Array');
-    expect(result).toContain('## Hash Table');
-    expect(result).toContain('| # | Problem | Platform | Solution |');
-    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |');
+    
+    // Verify alphabetical sorting of sections
+    const arrayIndex = result.indexOf('## Array');
+    const hashTableIndex = result.indexOf('## Hash Table');
+    expect(arrayIndex).toBeGreaterThan(-1);
+    expect(hashTableIndex).toBeGreaterThan(-1);
+    expect(arrayIndex).toBeLessThan(hashTableIndex);
+
+    // Verify correct headers and language link
+    expect(result).toContain('| # | Problem | Platform | Language |');
+    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp) |');
   });
 
   it('should append solutions under the correct topic heading', () => {
-    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Solution |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
+    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Language |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp) |\n`;
     
     const secondProblem: Problem = {
       id: '217',
@@ -63,42 +70,38 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     const result = updateReadmeTable(initialContent, secondProblem, secondSubmission);
     expect(result).toContain('## Array');
     expect(result).toContain('| 1 | [Two Sum]');
-    expect(result).toContain('| 2 | [Contains Duplicate](https://leetcode.com/problems/contains-duplicate/) | LeetCode #217 | [Solution](./contains-duplicate/contains-duplicate.java) |');
+    expect(result).toContain('| 2 | [Contains Duplicate](https://leetcode.com/problems/contains-duplicate/) | LeetCode #217 | [Java](./contains-duplicate/contains-duplicate.java) |');
   });
 
-  it('should support multi-topic grouping for the same problem under all its tags', () => {
-    const problem: Problem = {
-      id: '226',
-      title: 'Invert Binary Tree',
-      slug: 'invert-binary-tree',
-      difficulty: 'Easy',
-      description: 'Desc',
-      tags: ['Tree', 'Binary Tree'],
-      url: 'https://leetcode.com/problems/invert-binary-tree/',
-    };
+  it('should merge multi-language links alphabetically for the same problem', () => {
+    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Language |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp) |\n`;
     
-    const submission: Submission = {
-      id: 'sub_lc_3',
-      problem,
+    const javaSubmission: Submission = {
+      id: 'sub_lc_java',
+      problem: mockProblem,
       language: 'java',
-      code: 'code',
+      code: 'java code',
       timestamp: 0,
       status: 'ACCEPTED',
     };
 
-    const result = updateReadmeTable(null, problem, submission);
-    expect(result).toContain('## Tree');
-    expect(result).toContain('## Binary Tree');
-    expect(result).toContain('| 1 | [Invert Binary Tree](https://leetcode.com/problems/invert-binary-tree/) | LeetCode #226 | [Solution](./invert-binary-tree/invert-binary-tree.java) |');
+    const result = updateReadmeTable(initialContent, mockProblem, javaSubmission);
+    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp), [Java](./two-sum/two-sum.java) |');
   });
 
-  it('should not add duplicate problems in the same section', () => {
-    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Solution |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
+  it('should sort multi-language links alphabetically even if added in reverse order', () => {
+    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Language |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Java](./two-sum/two-sum.java) |\n`;
     
-    const result = updateReadmeTable(initialContent, mockProblem, mockSubmission);
-    // Since mockProblem has 'Array' and 'Hash Table', and 'Array' already has 'Two Sum',
-    // it will skip 'Array' but still append 'Hash Table' because it doesn't exist yet!
-    expect(result).toContain('## Hash Table');
-    expect(result).toContain('| 1 | [Two Sum]');
+    const cppSubmission: Submission = {
+      id: 'sub_lc_cpp',
+      problem: mockProblem,
+      language: 'cpp',
+      code: 'cpp code',
+      timestamp: 0,
+      status: 'ACCEPTED',
+    };
+
+    const result = updateReadmeTable(initialContent, mockProblem, cppSubmission);
+    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp), [Java](./two-sum/two-sum.java) |');
   });
 });
