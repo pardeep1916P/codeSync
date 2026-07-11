@@ -25,6 +25,7 @@ export const Popup: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
+  const [isQueueDropdownOpen, setIsQueueDropdownOpen] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export const Popup: React.FC = () => {
   }, [initialize]);
 
   useEffect(() => {
-    if (!isRepoDropdownOpen && !isThemeDropdownOpen) return;
+    if (!isRepoDropdownOpen && !isThemeDropdownOpen && !isQueueDropdownOpen) return;
 
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -94,13 +95,16 @@ export const Popup: React.FC = () => {
       if (isThemeDropdownOpen && !target.closest('.theme-dropdown-container')) {
         setIsThemeDropdownOpen(false);
       }
+      if (isQueueDropdownOpen && !target.closest('.queue-dropdown-container')) {
+        setIsQueueDropdownOpen(false);
+      }
     };
 
     document.addEventListener('click', handleOutsideClick);
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
-  }, [isRepoDropdownOpen, isThemeDropdownOpen]);
+  }, [isRepoDropdownOpen, isThemeDropdownOpen, isQueueDropdownOpen]);
 
   useEffect(() => {
     const activeTheme = THEMES[themeId] || THEMES.matrix;
@@ -442,52 +446,76 @@ export const Popup: React.FC = () => {
 
              {/* Queue and Sync Action */}
              <div className="border rounded-2xl p-4 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
-               <div className="flex items-center justify-between">
-                 <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
-                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[9px] font-bold tracking-wider uppercase border"
-                       style={{ 
-                         backgroundColor: store.commitQueue.length > 0 ? activeTheme.dangerBg : activeTheme.badgeBg, 
-                         borderColor: store.commitQueue.length > 0 ? activeTheme.dangerBorder : activeTheme.badgeBorder,
-                         color: store.commitQueue.length > 0 ? activeTheme.dangerText : activeTheme.badgeText
-                       }}>
-                   <span className="relative flex h-1.5 w-1.5">
-                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: store.commitQueue.length > 0 ? activeTheme.dangerText : activeTheme.accent }}></span>
-                     <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: store.commitQueue.length > 0 ? activeTheme.dangerText : activeTheme.accent }}></span>
-                   </span>
-                   {store.commitQueue.length} PENDING
-                 </span>
-               </div>
-
-               {/* Pending Submissions List */}
-               {pendingSubmissions.length > 0 && (
-                 <div className="flex flex-col gap-1.5 max-h-24 overflow-y-auto pr-1 repo-dropdown-scrollbar">
-                   {pendingSubmissions.map((sub) => (
-                     <div 
-                       key={sub.id} 
-                       className="flex items-center justify-between text-[10px] py-1.5 px-2.5 border rounded-xl transition-all"
-                       style={{ backgroundColor: activeTheme.inputBg, borderColor: activeTheme.border }}
-                     >
-                       <span className="truncate max-w-[190px]" style={{ color: activeTheme.textHighlight }}>
-                         {sub.title} <span className="opacity-40">[{sub.lang}]</span>
-                       </span>
-                       <button
-                         onClick={() => {
-                           store.removeItemFromQueue(sub.id);
-                           showToast('Item removed from queue.', 'success');
-                         }}
-                         className="hover:scale-110 active:scale-95 transition-all p-0.5 rounded"
-                         style={{ color: activeTheme.dangerText }}
-                         title="Remove from queue"
-                       >
-                         <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                           <line x1="18" y1="6" x2="6" y2="18"></line>
-                           <line x1="6" y1="6" x2="18" y2="18"></line>
-                         </svg>
-                       </button>
-                     </div>
-                   ))}
+               
+               {/* Collapsible Queue Dropdown */}
+               <div className="relative queue-dropdown-container flex flex-col gap-2">
+                 <div className="flex items-center justify-between">
+                   <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
                  </div>
-               )}
+
+                 <button
+                   onClick={() => setIsQueueDropdownOpen(!isQueueDropdownOpen)}
+                   className="w-full flex items-center justify-between px-3.5 py-2.5 border rounded-xl text-xs font-semibold hover:bg-white/5 transition-all duration-150"
+                   style={{ 
+                     backgroundColor: activeTheme.inputBg, 
+                     borderColor: activeTheme.border,
+                     color: activeTheme.textHighlight
+                   }}
+                 >
+                   <span className="flex items-center gap-2">
+                     <span className="relative flex h-1.5 w-1.5">
+                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: store.commitQueue.length > 0 ? activeTheme.dangerText : activeTheme.accent }}></span>
+                       <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ backgroundColor: store.commitQueue.length > 0 ? activeTheme.dangerText : activeTheme.accent }}></span>
+                     </span>
+                     <span>{store.commitQueue.length} PENDING</span>
+                   </span>
+                   <svg className="fill-current h-4 w-4 transition-transform duration-150 text-zinc-400" style={{ transform: isQueueDropdownOpen ? 'rotate(180deg)' : 'none' }} viewBox="0 0 20 20">
+                     <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                   </svg>
+                 </button>
+
+                 {/* Dropdown list of pending items (floating upwards over targeting card) */}
+                 {isQueueDropdownOpen && (
+                   <div className="absolute left-0 right-0 bottom-full mb-2 max-h-36 overflow-y-auto border rounded-xl shadow-2xl z-50 py-1.5 px-2 flex flex-col gap-1 repo-dropdown-scrollbar"
+                        style={{ 
+                          backgroundColor: activeTheme.bg, 
+                          borderColor: activeTheme.border 
+                        }}>
+                     {pendingSubmissions.length === 0 ? (
+                       <div className="text-[10px] text-center py-2 opacity-50 font-semibold uppercase">
+                         Queue is empty
+                       </div>
+                     ) : (
+                       pendingSubmissions.map((sub) => (
+                         <div 
+                           key={sub.id} 
+                           className="flex items-center justify-between text-[10px] py-1.5 px-2.5 border rounded-xl transition-all"
+                           style={{ backgroundColor: activeTheme.inputBg, borderColor: activeTheme.border }}
+                         >
+                           <span className="truncate max-w-[190px]" style={{ color: activeTheme.textHighlight }}>
+                             {sub.title} <span className="opacity-40">[{sub.lang}]</span>
+                           </span>
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               store.removeItemFromQueue(sub.id);
+                               showToast('Item removed from queue.', 'success');
+                             }}
+                             className="hover:scale-110 active:scale-95 transition-all p-0.5 rounded"
+                             style={{ color: activeTheme.dangerText }}
+                             title="Remove from queue"
+                           >
+                             <svg className="w-3.5 h-3.5 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                               <line x1="18" y1="6" x2="6" y2="18"></line>
+                               <line x1="6" y1="6" x2="18" y2="18"></line>
+                             </svg>
+                           </button>
+                         </div>
+                       ))
+                     )}
+                   </div>
+                 )}
+               </div>
 
                <div className="flex gap-2">
                  <Button 

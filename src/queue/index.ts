@@ -32,8 +32,11 @@ export class CommitQueue {
     
     for (const id of settings.commitQueue) {
       const data = await this.getSubmissionData(id);
-      if (data && data.problem && data.problem.slug === submission.problem.slug) {
-        console.log(`Deduplicating: removing older pending submission ${id} for problem ${submission.problem.slug}`);
+      const isSameProblem = data && data.problem && data.problem.slug === submission.problem.slug;
+      const isSameLanguage = data && data.language && submission.language && data.language.toLowerCase().trim() === submission.language.toLowerCase().trim();
+      
+      if (isSameProblem && isSameLanguage) {
+        console.log(`Deduplicating: removing older pending submission ${id} for problem ${submission.problem.slug} [${submission.language}]`);
         keysToRemove.push(`sub_${id}`);
       } else {
         cleanedQueue.push(id);
