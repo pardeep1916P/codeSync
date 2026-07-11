@@ -461,16 +461,28 @@ export const Popup: React.FC = () => {
                {/* Action Buttons */}
                <div className="flex gap-2">
                  <Button 
-                   onClick={handleManualSync} 
-                   disabled={!store.selectedRepo}
-                   className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all"
-                   style={{ 
-                     backgroundColor: activeTheme.accent, 
-                     color: activeTheme.bg 
-                   }}
-                 >
-                   TRIGGER_SYNC
-                 </Button>
+                    onClick={handleManualSync} 
+                    disabled={!store.selectedRepo || store.isSyncing}
+                    className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2"
+                    style={{ 
+                      backgroundColor: store.isSyncing ? activeTheme.cardBg : activeTheme.accent, 
+                      color: store.isSyncing ? activeTheme.text : activeTheme.bg,
+                      borderColor: activeTheme.border,
+                      borderWidth: store.isSyncing ? '1px' : '0px'
+                    }}
+                  >
+                    {store.isSyncing ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>SYNCING...</span>
+                      </>
+                    ) : (
+                      'TRIGGER_SYNC'
+                    )}
+                  </Button>
 
                  {store.commitQueue.length > 0 && (
                    <button

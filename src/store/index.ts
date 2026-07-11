@@ -4,8 +4,11 @@ import { GitHubClient } from '../github/client';
 import { GitHubRepo, GitHubUser } from '../github/types';
 import { GitHubOAuth } from '../github/oauth';
 
+let isListenerRegistered = false;
+
 interface AppState extends UserSettings {
   isLoading: boolean;
+  isSyncing: boolean;
   user: GitHubUser | null;
   repositories: GitHubRepo[];
   error: string | null;
@@ -29,6 +32,7 @@ export const useStore = create<AppState>((set, get) => ({
   syncOnAccept: true,
   commitQueue: [],
   isLoading: true,
+  isSyncing: false,
   user: null,
   repositories: [],
   error: null,
@@ -42,14 +46,16 @@ export const useStore = create<AppState>((set, get) => ({
       let cachedUser: GitHubUser | null = null;
       let cachedRepos: GitHubRepo[] = [];
       let cachedSolvedCount = 0;
+      let cachedIsSyncing = false;
 
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const cached = await new Promise<Record<string, unknown>>((resolve) => {
-          chrome.storage.local.get(['cached_user', 'cached_repos', 'codesync_solved_count'], (res) => resolve(res));
+          chrome.storage.local.get(['cached_user', 'cached_repos', 'codesync_solved_count', 'codesync_is_syncing'], (res) => resolve(res));
         });
         if (cached.cached_user) cachedUser = cached.cached_user as GitHubUser;
         if (cached.cached_repos) cachedRepos = cached.cached_repos as GitHubRepo[];
         if (typeof cached.codesync_solved_count === 'number') cachedSolvedCount = cached.codesync_solved_count;
+        if (typeof cached.codesync_is_syncing === 'boolean') cachedIsSyncing = cached.codesync_is_syncing;
       }
 
       // Immediately show UI with cached data (no loading flash)
@@ -58,9 +64,37 @@ export const useStore = create<AppState>((set, get) => ({
         user: cachedUser,
         repositories: cachedRepos,
         solvedCount: cachedSolvedCount,
+        isSyncing: cachedIsSyncing,
         isLoading: false,
         error: null,
       });
+
+      // Register storage listener once to sync changes dynamically from background process
+      if (!isListenerRegistered && typeof chrome !== 'undefined' && chrome.storage && chrome.storage.onChanged) {
+        isListenerRegistered = true;
+        chrome.storage.onChanged.addListener((changes, areaName) => {
+          if (areaName === 'local') {
+            if (changes.settings) {
+              const newSettings = changes.settings.newValue;
+              if (newSettings) {
+                set({
+                  githubToken: newSettings.githubToken,
+                  githubUser: newSettings.githubUser,
+                  selectedRepo: newSettings.selectedRepo,
+                  syncOnAccept: newSettings.syncOnAccept,
+                  commitQueue: newSettings.commitQueue || [],
+                });
+              }
+            }
+            if (changes.codesync_is_syncing) {
+              set({ isSyncing: !!changes.codesync_is_syncing.newValue });
+            }
+            if (changes.codesync_solved_count) {
+              set({ solvedCount: changes.codesync_solved_count.newValue });
+            }
+          }
+        });
+      }
 
       // Phase 2: Silently refresh from GitHub API in background
       if (settings.githubToken) {

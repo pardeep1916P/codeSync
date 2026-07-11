@@ -2,6 +2,8 @@ export interface GitHubUser {
   login: string;
   id: number;
   avatar_url: string;
+  name?: string | null;
+  email?: string | null;
 }
 
 export interface GitHubRepo {
@@ -18,4 +20,5 @@ export interface GitCommitPayload {
     content: string;
   }[];
   branch?: string;
+  authorDate?: string;
 }

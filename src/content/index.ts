@@ -134,10 +134,16 @@ async function handleAcceptedSubmission(data: SubmissionData) {
   const subId = data.submissionId;
   if (!subId) return;
 
-  // Deduplicate
+  // Deduplicate synchronously in-memory first to prevent race conditions from simultaneous triggers
+  if (processedSubmissionIds.has(subId)) {
+    console.log(`[CodeSync] Submission ${subId} already processed (in-memory lock), skipping.`);
+    return;
+  }
+  processedSubmissionIds.add(subId);
+
   const alreadyDone = await isAlreadyProcessed(subId);
   if (alreadyDone) {
-    console.log(`[CodeSync] Submission ${subId} already processed, skipping.`);
+    console.log(`[CodeSync] Submission ${subId} already processed (storage checked), skipping.`);
     return;
   }
 
@@ -152,10 +158,12 @@ async function handleAcceptedSubmission(data: SubmissionData) {
     const details = await fetchSubmissionDetails(subId);
     if (!details) {
       console.error(`[CodeSync] Failed to fetch details for submission ${subId}.`);
+      processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
     if (details.statusCode !== 10) {
       console.log(`[CodeSync] Submission ${subId} is not Accepted (status=${details.statusCode}).`);
+      processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
     question = details.question;
@@ -166,6 +174,7 @@ async function handleAcceptedSubmission(data: SubmissionData) {
 
   if (!question) {
     console.error(`[CodeSync] No question data for submission ${subId}.`);
+    processedSubmissionIds.delete(subId); // Release lock on failure
     return;
   }
 

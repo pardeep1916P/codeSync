@@ -80,11 +80,18 @@ export class CommitQueue {
     if (this.isProcessing) return;
     this.isProcessing = true;
 
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await chrome.storage.local.set({ codesync_is_syncing: true });
+    }
+
     try {
       const settings = await storage.getSettings();
       if (!settings.githubToken || !settings.selectedRepo) {
         console.warn('GitHub is not configured. Queue processing paused.');
         this.isProcessing = false;
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          await chrome.storage.local.set({ codesync_is_syncing: false });
+        }
         return;
       }
 
@@ -119,6 +126,9 @@ export class CommitQueue {
       }
     } finally {
       this.isProcessing = false;
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({ codesync_is_syncing: false });
+      }
     }
   }
 
@@ -230,6 +240,7 @@ export class CommitQueue {
         { path: 'README.md', content: updatedReadme },
         { path: 'stats.json', content: statsStr },
       ],
+      authorDate: new Date(submission.timestamp).toISOString(),
     });
   }
 

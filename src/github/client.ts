@@ -2,6 +2,7 @@ import { GitHubUser, GitHubRepo, GitCommitPayload } from './types';
 
 export class GitHubClient {
   private token: string;
+  private cachedUser: GitHubUser | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -33,7 +34,10 @@ export class GitHubClient {
   }
 
   async getUser(): Promise<GitHubUser> {
-    return this.request<GitHubUser>('/user');
+    if (this.cachedUser) return this.cachedUser;
+    const user = await this.request<GitHubUser>('/user');
+    this.cachedUser = user;
+    return user;
   }
 
   async getRepositories(): Promise<GitHubRepo[]> {
@@ -148,11 +152,28 @@ export class GitHubClient {
     const newTreeSha = newTreeResponse.sha;
 
     // 5. Create the commit object referencing the new tree and base commit parent
-    const commitParams = {
+    const commitParams: any = {
       message: payload.message,
       tree: newTreeSha,
       parents: [latestCommitSha],
     };
+
+    if (payload.authorDate) {
+      let name = 'CodeSync User';
+      let email = 'codesync@users.noreply.github.com';
+      try {
+        const user = await this.getUser();
+        name = user.name || user.login || name;
+        email = user.email || `${user.login}@users.noreply.github.com`;
+      } catch (e) {
+        console.warn('Failed to resolve commit author details, using fallback:', e);
+      }
+      commitParams.author = {
+        name,
+        email,
+        date: payload.authorDate,
+      };
+    }
     const newCommitResponse = await this.request<{ sha: string }>(
       `/repos/${repoFullName}/git/commits`,
       {

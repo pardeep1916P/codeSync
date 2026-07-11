@@ -8,8 +8,6 @@ if (!(window as any).__codeSyncInjected) {
 
     try {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : '');
-      console.log('[CodeSync:Fetch]', url);
-      
       const isGraphQL = url.includes('/graphql') || url.includes('leetcode.com/graphql');
       const isCheck = url.includes('/check/');
       
@@ -17,7 +15,6 @@ if (!(window as any).__codeSyncInjected) {
         // Clone so we don't consume the body that LeetCode needs
         const cloned = response.clone();
         cloned.json().then(function(json) {
-          console.log('[CodeSync:Intercepted]', url, json);
 
           if (isCheck && json) {
             const match = url.match(/submissions\/detail\/(\d+)/);
@@ -106,7 +103,6 @@ if (!(window as any).__codeSyncInjected) {
 
   (XMLHttpRequest.prototype as any).open = function(method: string, url: string | URL, ...rest: any[]) {
     (this as any)._codeSyncUrl = url;
-    console.log('[CodeSync:XHR]', url);
     return (originalXHROpen as any).apply(this, [method, url, ...rest]);
   };
 
@@ -119,7 +115,6 @@ if (!(window as any).__codeSyncInjected) {
       this.addEventListener('load', function(this: any) {
         try {
           const json = JSON.parse(this.responseText);
-          console.log('[CodeSync:Intercepted XHR]', urlStr, json);
 
           if (isCheck && json) {
             const match = urlStr.match(/submissions\/detail\/(\d+)/);
