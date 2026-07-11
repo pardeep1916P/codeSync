@@ -209,7 +209,7 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzEwYjk4MSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiBmb250LXNpemU9IjcwIiBmaWxsPSIjZmZmZmZmIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkM8L3RleHQ+PC9zdmc+';
+        const DEFAULT_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR42u3SQREAAAgEoNu/tDl2sg9+CGB55VJRAAMECBAgQIAAAQIECBAgQIAZbx4J87rD/4gAAAAASUVORK5CYII=';
         chrome.notifications.create(`sync_${Date.now()}`, {
           type: 'basic',
           iconUrl: DEFAULT_ICON,
@@ -218,6 +218,10 @@ export class CommitQueue {
             ? `Successfully synced "${problemTitle}" to GitHub!`
             : `Failed to sync "${problemTitle}": ${errorMessage || 'Unknown error'}`,
           priority: 2
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.warn('[CodeSync] Notification error (sync):', chrome.runtime.lastError.message);
+          }
         });
       }
     }
@@ -235,13 +239,17 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjgiIGhlaWdodD0iMTI4IiB2aWV3Qm94PSIwIDAgMTI4IDEyOCI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIHJ4PSIyNCIgZmlsbD0iIzEwYjk4MSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTUlIiBmb250LXNpemU9IjcwIiBmaWxsPSIjZmZmZmZmIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9ImJvbGQiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkM8L3RleHQ+PC9zdmc+';
+        const DEFAULT_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR42u3SQREAAAgEoNu/tDl2sg9+CGB55VJRAAMECBAgQIAAAQIECBAgQIAZbx4J87rD/4gAAAAASUVORK5CYII=';
         chrome.notifications.create(`queued_${Date.now()}`, {
           type: 'basic',
           iconUrl: DEFAULT_ICON,
           title: 'CodeSync - Submission Queued',
           message: `"${problemTitle}" added to queue (${queueLength} pending). Sync manually or wait for auto-sync.`,
           priority: 1
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.warn('[CodeSync] Notification error (queue):', chrome.runtime.lastError.message);
+          }
         });
       }
     }
