@@ -24,6 +24,7 @@ export const Options: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
+  const [tokenInput, setTokenInput] = useState('');
 
   useEffect(() => {
     initialize();
@@ -116,6 +117,14 @@ export const Options: React.FC = () => {
     await store.setSyncOnAccept(e.target.checked);
   };
 
+  const handleConnectPAT = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!tokenInput.trim()) return;
+    await store.login(tokenInput.trim());
+    setTokenInput('');
+    showToast('Connected with PAT successfully!', 'success');
+  };
+
   const handleClearQueue = async () => {
     if (confirm('Are you sure you want to clear the pending sync queue?')) {
       await store.logout(); // Simple reset
@@ -148,45 +157,98 @@ export const Options: React.FC = () => {
         {/* Connection & Auth Status */}
         <section className="flex flex-col gap-3">
           <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">1. GitHub Authentication</h2>
-          <div className="border rounded-2xl p-5 flex items-center justify-between" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
+          <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
             {store.githubToken ? (
-              <div className="flex items-center gap-4">
-                <img
-                  src={store.user?.avatar_url || 'https://github.com/identicons/guest.png'}
-                  alt={store.user?.login || 'User'}
-                  className="w-12 h-12 rounded-full border bg-zinc-900"
-                  style={{ borderColor: activeTheme.border }}
-                />
-                <div>
-                  <p className="text-sm font-bold" style={{ color: activeTheme.textHighlight }}>{store.user?.login}</p>
-                  <p className="text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider mt-0.5" style={{ color: activeTheme.accent }}>
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: activeTheme.accent }}></span>
-                    STATUS: ACTIVE_OAUTH_SESSION
-                  </p>
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={store.user?.avatar_url || 'https://github.com/identicons/guest.png'}
+                    alt={store.user?.login || 'User'}
+                    className="w-12 h-12 rounded-full border bg-zinc-900"
+                    style={{ borderColor: activeTheme.border }}
+                  />
+                  <div>
+                    <p className="text-sm font-bold" style={{ color: activeTheme.textHighlight }}>{store.user?.login}</p>
+                    <p className="text-[10px] font-bold flex items-center gap-1.5 uppercase tracking-wider mt-0.5" style={{ color: activeTheme.accent }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: activeTheme.accent }}></span>
+                      STATUS: ACTIVE_OAUTH_SESSION
+                    </p>
+                  </div>
                 </div>
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    store.logout();
+                    showToast('Disconnected from GitHub', 'success');
+                  }}
+                  className="text-xs uppercase tracking-wider"
+                  style={{ 
+                    backgroundColor: activeTheme.dangerBg, 
+                    borderColor: activeTheme.dangerBorder,
+                    color: activeTheme.dangerText 
+                  }}
+                >
+                  Disconnect
+                </Button>
               </div>
             ) : (
-              <div>
-                <p className="text-sm font-bold opacity-80">Disconnected</p>
-                <p className="text-xs mt-1 leading-relaxed opacity-55">Please authenticate using the popup page to begin syncing solutions.</p>
+              <div className="flex flex-col gap-5 w-full">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold opacity-80">Disconnected</p>
+                    <p className="text-xs mt-1 leading-relaxed opacity-55">Authenticate to link your GitHub account and start syncing solutions.</p>
+                  </div>
+                  <Button
+                    onClick={() => store.loginOAuth()}
+                    className="text-xs uppercase tracking-wider font-bold py-2.5 px-4 rounded-xl shadow active:scale-95 transition-all text-center self-start sm:self-auto shrink-0 border"
+                    style={{ 
+                      backgroundColor: activeTheme.inputBg,
+                      borderColor: activeTheme.border,
+                      color: activeTheme.textHighlight 
+                    }}
+                  >
+                    Authenticate OAuth
+                  </Button>
+                </div>
+                
+                <div className="flex items-center my-1 text-[9px] font-bold tracking-wider uppercase opacity-40">
+                  <div className="flex-grow border-t" style={{ borderColor: activeTheme.border }}></div>
+                  <span className="px-2">OR CONNECT WITH PERSONAL ACCESS TOKEN</span>
+                  <div className="flex-grow border-t" style={{ borderColor: activeTheme.border }}></div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3 items-end">
+                  <div className="flex-1 min-w-[200px] w-full">
+                    <label className="block text-[9px] font-bold mb-1.5 tracking-wider uppercase opacity-55">
+                      github_pat_token
+                    </label>
+                    <input
+                      type="password"
+                      value={tokenInput}
+                      onChange={(e) => setTokenInput(e.target.value)}
+                      placeholder="ghp_..."
+                      className="w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none transition-all duration-150 font-mono"
+                      style={{ 
+                        backgroundColor: activeTheme.inputBg, 
+                        borderColor: activeTheme.border,
+                        color: activeTheme.textHighlight
+                      }}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleConnectPAT}
+                    variant="secondary" 
+                    className="py-2.5 px-4 text-xs font-bold tracking-wider uppercase border rounded-xl w-full sm:w-auto shrink-0"
+                    style={{ 
+                      backgroundColor: activeTheme.inputBg, 
+                      borderColor: activeTheme.border,
+                      color: activeTheme.textHighlight
+                    }}
+                  >
+                    Connect PAT
+                  </Button>
+                </div>
               </div>
-            )}
-            {store.githubToken && (
-              <Button
-                variant="danger"
-                onClick={() => {
-                  store.logout();
-                  showToast('Disconnected from GitHub', 'success');
-                }}
-                className="text-xs uppercase tracking-wider"
-                style={{ 
-                  backgroundColor: activeTheme.dangerBg, 
-                  borderColor: activeTheme.dangerBorder,
-                  color: activeTheme.dangerText 
-                }}
-              >
-                Disconnect
-              </Button>
             )}
           </div>
         </section>

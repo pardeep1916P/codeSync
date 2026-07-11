@@ -19,7 +19,7 @@ export class GitHubOAuth {
 
     return `https://github.com/login/oauth/authorize?client_id=${this.config.clientId}&scope=${encodeURIComponent(
       scopes
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    )}&redirect_uri=${encodeURIComponent(redirectUri)}&prompt=select_account`;
   }
   
 
