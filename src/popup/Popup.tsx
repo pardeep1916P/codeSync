@@ -27,6 +27,29 @@ export const Popup: React.FC = () => {
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isQueueDropdownOpen, setIsQueueDropdownOpen] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const requestConfirm = (title: string, message: string, onConfirm: () => void | Promise<void>) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: async () => {
+        await onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   useEffect(() => {
     initialize();
@@ -486,12 +509,16 @@ export const Popup: React.FC = () => {
 
                  {store.commitQueue.length > 0 && (
                    <button
-                     onClick={async () => {
-                       if (confirm('Clear the entire sync queue?')) {
-                         await store.clearQueue();
-                         showToast('Queue cleared.', 'success');
-                       }
-                     }}
+                     onClick={() => {
+                        requestConfirm(
+                          'CLEAR QUEUE',
+                          'Are you sure you want to clear the entire pending sync queue?',
+                          async () => {
+                            await store.clearQueue();
+                            showToast('Queue cleared.', 'success');
+                          }
+                        );
+                      }}
                      className="px-3 border rounded-xl hover:opacity-85 transition-all flex items-center justify-center"
                      style={{ 
                        borderColor: activeTheme.dangerBorder, 
@@ -604,6 +631,65 @@ export const Popup: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div 
+          className="absolute inset-0 flex items-center justify-center z-50 p-4 animate-fade-in backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+        >
+          <div 
+            className="w-full max-w-[280px] border rounded-2xl p-5 flex flex-col gap-4 shadow-2xl animate-scale-up"
+            style={{ 
+              backgroundColor: activeTheme.bg === '#000000' ? '#09090b' : activeTheme.bg, 
+              borderColor: activeTheme.border 
+            }}
+          >
+            <div className="flex flex-col gap-1.5">
+              <span 
+                className="text-[9px] font-extrabold tracking-widest uppercase opacity-65"
+                style={{ color: activeTheme.text }}
+              >
+                {confirmModal.title}
+              </span>
+              <p 
+                className="text-xs font-semibold leading-relaxed"
+                style={{ color: activeTheme.textHighlight }}
+              >
+                {confirmModal.message}
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 mt-2">
+              <button
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="flex-1 py-2 text-xs font-bold tracking-wider uppercase border rounded-xl hover:opacity-85 transition-all"
+                style={{ 
+                  borderColor: activeTheme.border, 
+                  color: activeTheme.textHighlight,
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)'
+                }}
+              >
+                CANCEL
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onConfirm();
+                }}
+                className="flex-1 py-2 text-xs font-bold tracking-wider uppercase rounded-xl hover:opacity-85 transition-all"
+                style={{ 
+                  backgroundColor: activeTheme.dangerBg, 
+                  borderColor: activeTheme.dangerBorder, 
+                  color: activeTheme.dangerText,
+                  borderWidth: '1px'
+                }}
+              >
+                CLEAR
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
