@@ -8,13 +8,29 @@ if (!(window as any).__codeSyncInjected) {
 
     try {
       const url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : '');
+      console.log('[CodeSync:Fetch]', url);
+      
       const isGraphQL = url.includes('/graphql') || url.includes('leetcode.com/graphql');
       const isCheck = url.includes('/check/');
+      const isSubmit = url.includes('/submit/');
       
-      if (isGraphQL || isCheck) {
+      if (isGraphQL || isCheck || isSubmit) {
         // Clone so we don't consume the body that LeetCode needs
         const cloned = response.clone();
         cloned.json().then(function(json) {
+          console.log('[CodeSync:Intercepted]', url, json);
+
+          if (isSubmit && json && json.submission_id) {
+            console.log('[CodeSync] Intercepted submission trigger. ID:', json.submission_id);
+            // We got the submission ID immediately! We can trigger check/fetch logic.
+            window.postMessage({
+              type: 'CODESYNC_JUDGING_ACCEPTED',
+              payload: {
+                submissionId: json.submission_id,
+              }
+            }, '*');
+          }
+
           if (isCheck && json) {
             const match = url.match(/submissions\/detail\/(\d+)\/check/);
             const subId = match ? match[1] : null;
@@ -101,6 +117,7 @@ if (!(window as any).__codeSyncInjected) {
 
   (XMLHttpRequest.prototype as any).open = function(method: string, url: string | URL, ...rest: any[]) {
     (this as any)._codeSyncUrl = url;
+    console.log('[CodeSync:XHR]', url);
     return (originalXHROpen as any).apply(this, [method, url, ...rest]);
   };
 
@@ -108,11 +125,24 @@ if (!(window as any).__codeSyncInjected) {
     const urlStr = this._codeSyncUrl || '';
     const isGraphQL = urlStr.includes('/graphql') || urlStr.includes('leetcode.com/graphql');
     const isCheck = urlStr.includes('/check/');
+    const isSubmit = urlStr.includes('/submit/');
 
-    if (isGraphQL || isCheck) {
+    if (isGraphQL || isCheck || isSubmit) {
       this.addEventListener('load', function(this: any) {
         try {
           const json = JSON.parse(this.responseText);
+          console.log('[CodeSync:Intercepted XHR]', urlStr, json);
+
+          if (isSubmit && json && json.submission_id) {
+            console.log('[CodeSync] Intercepted XHR submission trigger. ID:', json.submission_id);
+            window.postMessage({
+              type: 'CODESYNC_JUDGING_ACCEPTED',
+              payload: {
+                submissionId: json.submission_id,
+              }
+            }, '*');
+          }
+
           if (isCheck && json) {
             const match = urlStr.match(/submissions\/detail\/(\d+)\/check/);
             const subId = match ? match[1] : null;
