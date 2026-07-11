@@ -19,11 +19,12 @@ export default defineConfig({
         options: resolve(__dirname, 'src/options/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         content: resolve(__dirname, 'src/content/index.ts'),
+        interceptor: resolve(__dirname, 'src/content/interceptor.ts'),
       },
       output: {
         entryFileNames: (chunkInfo) => {
-          // Keep background and content scripts with clean static names
-          if (chunkInfo.name === 'background' || chunkInfo.name === 'content') {
+          // Keep background, content, and interceptor scripts with clean static names
+          if (chunkInfo.name === 'background' || chunkInfo.name === 'content' || chunkInfo.name === 'interceptor') {
             return '[name].js';
           }
           return 'assets/[name]-[hash].js';

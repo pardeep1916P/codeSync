@@ -14,129 +14,8 @@
  *      background service worker via chrome.runtime.sendMessage.
  */
 
-// ── Page-level injection script (runs in MAIN world) ──────────────────────
-// This must run in the page context to intercept fetch() calls.
-const INJECTED_SCRIPT = `
-(function() {
-  if (window.__codeSyncInjected) return;
-  window.__codeSyncInjected = true;
-
-  const originalFetch = window.fetch;
-
-  window.fetch = async function(...args) {
-    const response = await originalFetch.apply(this, args);
-
-    try {
-      const url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : '');
-      
-      if (url.includes('/graphql') || url.includes('leetcode.com/graphql')) {
-        // Clone so we don't consume the body that LeetCode needs
-        const cloned = response.clone();
-        cloned.json().then(function(json) {
-          // Detect the submission check response
-          // LeetCode polls this query while judging; status_id 10 = Accepted
-          if (json && json.data && json.data.submissionDetails) {
-            const details = json.data.submissionDetails;
-            if (details && details.statusCode !== undefined) {
-              // statusCode 10 = Accepted in LeetCode's system
-              if (details.statusCode === 10) {
-                window.postMessage({
-                  type: 'CODESYNC_SUBMISSION_ACCEPTED',
-                  payload: {
-                    submissionId: details.id || '',
-                    code: details.code || '',
-                    lang: details.lang ? details.lang.name : '',
-                    runtime: details.runtime || '',
-                    memory: details.memory || '',
-                    timestamp: details.timestamp || Math.floor(Date.now() / 1000),
-                    question: details.question || null,
-                  }
-                }, '*');
-              }
-            }
-          }
-
-          // Also handle the submission list polling approach
-          if (json && json.data && json.data.submissionList) {
-            const submissions = json.data.submissionList.submissions || [];
-            for (const sub of submissions) {
-              if (sub.statusDisplay === 'Accepted') {
-                window.postMessage({
-                  type: 'CODESYNC_SUBMISSION_LIST_ACCEPTED',
-                  payload: {
-                    submissionId: sub.id,
-                    lang: sub.lang || '',
-                    timestamp: sub.timestamp || Math.floor(Date.now() / 1000),
-                  }
-                }, '*');
-                break; // Only the latest
-              }
-            }
-          }
-
-          // Handle the check endpoint that LeetCode uses during judging
-          if (json && json.data && json.data.submissionProgress) {
-            const progress = json.data.submissionProgress;
-            if (progress && progress.state === 'SUCCESS' && progress.statusCode === 10) {
-              window.postMessage({
-                type: 'CODESYNC_JUDGING_ACCEPTED',
-                payload: {
-                  submissionId: progress.submissionId || '',
-                }
-              }, '*');
-            }
-          }
-        }).catch(function() {
-          // Silently ignore non-JSON responses
-        });
-      }
-    } catch(e) {
-      // Never break the page
-    }
-
-    return response;
-  };
-
-  // Also intercept XMLHttpRequest for legacy support
-  const originalXHROpen = XMLHttpRequest.prototype.open;
-  const originalXHRSend = XMLHttpRequest.prototype.send;
-
-  XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-    this._codeSyncUrl = url;
-    return originalXHROpen.apply(this, [method, url, ...rest]);
-  };
-
-  XMLHttpRequest.prototype.send = function(...args) {
-    if (this._codeSyncUrl && (this._codeSyncUrl.includes('/graphql') || this._codeSyncUrl.includes('leetcode.com/graphql'))) {
-      this.addEventListener('load', function() {
-        try {
-          const json = JSON.parse(this.responseText);
-          if (json && json.data && json.data.submissionDetails) {
-            const details = json.data.submissionDetails;
-            if (details && details.statusCode === 10) {
-              window.postMessage({
-                type: 'CODESYNC_SUBMISSION_ACCEPTED',
-                payload: {
-                  submissionId: details.id || '',
-                  code: details.code || '',
-                  lang: details.lang ? details.lang.name : '',
-                  runtime: details.runtime || '',
-                  memory: details.memory || '',
-                  timestamp: details.timestamp || Math.floor(Date.now() / 1000),
-                  question: details.question || null,
-                }
-              }, '*');
-            }
-          }
-        } catch(e) {}
-      });
-    }
-    return originalXHRSend.apply(this, args);
-  };
-
-  console.log('[CodeSync] Network interceptor injected successfully.');
-})();
-`;
+// The network interceptor code is compiled to interceptor.js and injected via script.src
+// to comply with strict Content Security Policies on LeetCode.
 
 // ── Processed submissions tracker ──────────────────────────────────────────
 const processedSubmissionIds = new Set<string>();
@@ -340,9 +219,8 @@ function initContentScript() {
 
   // Inject the network interceptor into the page context
   const script = document.createElement('script');
-  script.textContent = INJECTED_SCRIPT;
+  script.src = chrome.runtime.getURL('interceptor.js');
   (document.head || document.documentElement).appendChild(script);
-  script.remove(); // Clean up the <script> tag
 
   // Listen for messages from the injected page script
   window.addEventListener('message', async (event) => {

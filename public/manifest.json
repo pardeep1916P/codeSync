@@ -41,5 +41,16 @@
       ],
       "run_at": "document_end"
     }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "interceptor.js"
+      ],
+      "matches": [
+        "https://*.leetcode.com/*",
+        "https://*.leetcode.cn/*"
+      ]
+    }
   ]
 }
