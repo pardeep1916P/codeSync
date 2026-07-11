@@ -122,6 +122,14 @@ function htmlToMarkdown(html: string): string {
   text = text.replace(/<\/ol>/g, '\n');
   text = text.replace(/<li[^>]*>(.*?)<\/li>/g, '- $1\n');
   
+  
+  // Images
+  text = text.replace(/<img[^>]*src=["']([^"']+)["'][^>]*>/g, (match, src) => {
+    const altMatch = match.match(/alt=["']([^"']+)["']/);
+    const alt = altMatch ? altMatch[1] : 'image';
+    return `![${alt}](${src})`;
+  });
+
   // Clean up remaining tags, entities, and whitespace
   text = text
     .replace(/&nbsp;/g, ' ')
