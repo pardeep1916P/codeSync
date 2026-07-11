@@ -447,12 +447,52 @@ export const Popup: React.FC = () => {
              {/* Queue and Sync Action */}
              <div className="border rounded-2xl p-4 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
                
-               {/* Collapsible Queue Dropdown */}
-               <div className="relative queue-dropdown-container flex flex-col gap-2">
-                 <div className="flex items-center justify-between">
-                   <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
-                 </div>
+               <div className="flex items-center justify-between">
+                 <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
+               </div>
 
+               {/* Action Buttons */}
+               <div className="flex gap-2">
+                 <Button 
+                   onClick={handleManualSync} 
+                   disabled={!store.selectedRepo}
+                   className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all"
+                   style={{ 
+                     backgroundColor: activeTheme.accent, 
+                     color: activeTheme.bg 
+                   }}
+                 >
+                   TRIGGER_SYNC
+                 </Button>
+
+                 {store.commitQueue.length > 0 && (
+                   <button
+                     onClick={async () => {
+                       if (confirm('Clear the entire sync queue?')) {
+                         await store.clearQueue();
+                         showToast('Queue cleared.', 'success');
+                       }
+                     }}
+                     className="px-3 border rounded-xl hover:opacity-85 transition-all flex items-center justify-center"
+                     style={{ 
+                       borderColor: activeTheme.dangerBorder, 
+                       backgroundColor: activeTheme.dangerBg,
+                       color: activeTheme.dangerText 
+                     }}
+                     title="Clear queue"
+                   >
+                     <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                       <polyline points="3 6 5 6 21 6"></polyline>
+                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                       <line x1="10" y1="11" x2="10" y2="17"></line>
+                       <line x1="14" y1="11" x2="14" y2="17"></line>
+                     </svg>
+                   </button>
+                 )}
+               </div>
+
+               {/* Collapsible Queue Dropdown (placed below the buttons) */}
+               <div className="relative queue-dropdown-container flex flex-col gap-2">
                  <button
                    onClick={() => setIsQueueDropdownOpen(!isQueueDropdownOpen)}
                    className="w-full flex items-center justify-between px-3.5 py-2.5 border rounded-xl text-xs font-semibold hover:bg-white/5 transition-all duration-150"
@@ -474,9 +514,9 @@ export const Popup: React.FC = () => {
                    </svg>
                  </button>
 
-                 {/* Dropdown list of pending items (floating upwards over targeting card) */}
+                 {/* Dropdown list of pending items (floating downwards) */}
                  {isQueueDropdownOpen && (
-                   <div className="absolute left-0 right-0 bottom-full mb-2 max-h-36 overflow-y-auto border rounded-xl shadow-2xl z-50 py-1.5 px-2 flex flex-col gap-1 repo-dropdown-scrollbar"
+                   <div className="absolute left-0 right-0 top-full mt-1.5 max-h-36 overflow-y-auto border rounded-xl shadow-2xl z-50 py-1.5 px-2 flex flex-col gap-1 repo-dropdown-scrollbar"
                         style={{ 
                           backgroundColor: activeTheme.bg, 
                           borderColor: activeTheme.border 
@@ -514,45 +554,6 @@ export const Popup: React.FC = () => {
                        ))
                      )}
                    </div>
-                 )}
-               </div>
-
-               <div className="flex gap-2">
-                 <Button 
-                   onClick={handleManualSync} 
-                   disabled={!store.selectedRepo}
-                   className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all"
-                   style={{ 
-                     backgroundColor: activeTheme.accent, 
-                     color: activeTheme.bg 
-                   }}
-                 >
-                   TRIGGER_SYNC
-                 </Button>
-
-                 {store.commitQueue.length > 0 && (
-                   <button
-                     onClick={async () => {
-                       if (confirm('Clear the entire sync queue?')) {
-                         await store.clearQueue();
-                         showToast('Queue cleared.', 'success');
-                       }
-                     }}
-                     className="px-3 border rounded-xl hover:opacity-85 transition-all flex items-center justify-center"
-                     style={{ 
-                       borderColor: activeTheme.dangerBorder, 
-                       backgroundColor: activeTheme.dangerBg,
-                       color: activeTheme.dangerText 
-                     }}
-                     title="Clear queue"
-                   >
-                     <svg className="w-4 h-4 fill-none stroke-current" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                       <polyline points="3 6 5 6 21 6"></polyline>
-                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                       <line x1="10" y1="11" x2="10" y2="17"></line>
-                       <line x1="14" y1="11" x2="14" y2="17"></line>
-                     </svg>
-                   </button>
                  )}
                </div>
              </div>
