@@ -20,6 +20,32 @@ export function getPlatformName(url: string): string {
   return 'LeetCode'; // default fallback
 }
 
+/**
+ * Computes the Git SHA-1 of a string content.
+ * Follows the standard Git blob format: sha1("blob <size>\0<content>")
+ */
+export async function computeGitSha(content: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const contentBytes = encoder.encode(content);
+  const headerBytes = encoder.encode(`blob ${contentBytes.length}\0`);
+  
+  const gitBlobBytes = new Uint8Array(headerBytes.length + contentBytes.length);
+  gitBlobBytes.set(headerBytes, 0);
+  gitBlobBytes.set(contentBytes, headerBytes.length);
+
+  const subtleCrypto = typeof crypto !== 'undefined' && crypto.subtle 
+    ? crypto.subtle 
+    : (globalThis as any).crypto?.subtle;
+
+  if (!subtleCrypto) {
+    throw new Error('Web Crypto API (crypto.subtle) is not available in this environment.');
+  }
+
+  const hashBuffer = await subtleCrypto.digest('SHA-1', gitBlobBytes);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b: any) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export function updateReadmeTable(
   existingContent: string | null,
   problem: Problem,
@@ -30,93 +56,95 @@ export function updateReadmeTable(
   const solutionPath = `./${problem.slug}/${problem.slug}.${fileExt}`;
   const problemUrl = problem.url || `https://leetcode.com/problems/${problem.slug}/`;
 
-  const header = `| # | Problem | Difficulty | Solution | Submission |`;
-  const separator = `| :--- | :--- | :--- | :--- | :--- |`;
-
-  // Base template if README is completely empty
-  if (!existingContent) {
-    let base = `# CodeSync Solutions\n\nMy coding solutions synced automatically using CodeSync.\n\n`;
-    base += `## ${platform}\n\n`;
-    base += `${header}\n${separator}\n`;
-    base += `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | [Solution](${solutionPath}) | [Submission](${problemUrl}) |\n`;
-    return base;
+  let content = existingContent || `# CodeSync Solutions\n\nMy coding solutions synced automatically using CodeSync.\n`;
+  if (!content.endsWith('\n')) {
+    content += '\n';
   }
 
-  const lines = existingContent.split('\n');
-  const sectionHeader = `## ${platform}`;
-  
-  // Find the platform heading index
-  const headingIndex = lines.findIndex(line => line.trim().toLowerCase() === sectionHeader.toLowerCase());
+  const tags = problem.tags && problem.tags.length > 0 ? problem.tags : ['General'];
 
-  if (headingIndex === -1) {
-    // Platform section does not exist. Append it at the end.
-    let appendStr = `\n\n${sectionHeader}\n\n`;
-    appendStr += `${header}\n${separator}\n`;
-    appendStr += `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | [Solution](${solutionPath}) | [Submission](${problemUrl}) |\n`;
-    return existingContent.trimEnd() + appendStr;
-  }
+  for (const tag of tags) {
+    const sectionHeader = `## ${tag}`;
+    const header = `| # | Problem | Difficulty | Platform | Solution |`;
+    const separator = `| :--- | :--- | :--- | :--- | :--- |`;
+    const targetPattern = `[${problem.title}]`;
 
-  // Find the table within this platform section (before the next section header)
-  let tableStartIndex = -1;
-  let nextSectionIndex = lines.length;
+    const lines = content.split('\n');
+    const headingIndex = lines.findIndex(line => line.trim().toLowerCase() === sectionHeader.toLowerCase());
 
-  for (let i = headingIndex + 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.startsWith('#')) {
-      nextSectionIndex = i;
-      break;
+    if (headingIndex === -1) {
+      // Create section at the end
+      let appendStr = `\n${sectionHeader}\n\n`;
+      appendStr += `${header}\n${separator}\n`;
+      appendStr += `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |\n`;
+      content = lines.join('\n').trimEnd() + appendStr;
+      continue;
     }
-    if (line.includes('| # | Problem |') && tableStartIndex === -1) {
-      tableStartIndex = i;
-    }
-  }
 
-  if (tableStartIndex === -1 || tableStartIndex >= nextSectionIndex) {
-    // Heading exists but table doesn't. Insert it right after the heading.
-    const newTableLines = [
-      '',
-      header,
-      separator,
-      `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | [Solution](${solutionPath}) | [Submission](${problemUrl}) |`,
-      ''
-    ];
-    lines.splice(headingIndex + 1, 0, ...newTableLines);
-    return lines.join('\n');
-  }
+    // Section exists, find table start and next section start
+    let tableStartIndex = -1;
+    let nextSectionIndex = lines.length;
 
-  // Find the end of the table
-  let lastRowIndex = tableStartIndex + 1;
-  while (lastRowIndex + 1 < nextSectionIndex && lines[lastRowIndex + 1].trim().startsWith('|')) {
-    lastRowIndex++;
-  }
-
-  // Parse table rows to check for duplicates and find the last index number
-  let maxIndex = 0;
-  let alreadyExists = false;
-  const targetPattern = `[${problem.title}]`;
-
-  for (let i = tableStartIndex + 2; i <= lastRowIndex; i++) {
-    const line = lines[i];
-    if (line.includes(targetPattern)) {
-      alreadyExists = true;
-      break;
-    }
-    const match = line.match(/^\|\s*(\d+)\s*\|/);
-    if (match) {
-      const idx = parseInt(match[1], 10);
-      if (idx > maxIndex) {
-        maxIndex = idx;
+    for (let i = headingIndex + 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#')) {
+        nextSectionIndex = i;
+        break;
+      }
+      if (line.includes('| # | Problem |') && tableStartIndex === -1) {
+        tableStartIndex = i;
       }
     }
+
+    if (tableStartIndex === -1 || tableStartIndex >= nextSectionIndex) {
+      // Table doesn't exist under heading. Insert it.
+      const newTableLines = [
+        '',
+        header,
+        separator,
+        `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |`,
+        ''
+      ];
+      lines.splice(headingIndex + 1, 0, ...newTableLines);
+      content = lines.join('\n');
+      continue;
+    }
+
+    // Table exists, find last row
+    let lastRowIndex = tableStartIndex + 1;
+    while (lastRowIndex + 1 < nextSectionIndex && lines[lastRowIndex + 1].trim().startsWith('|')) {
+      lastRowIndex++;
+    }
+
+    // Check for duplicates in this specific table
+    let alreadyExists = false;
+    let maxIndex = 0;
+
+    for (let i = tableStartIndex + 2; i <= lastRowIndex; i++) {
+      const line = lines[i];
+      if (line.includes(targetPattern)) {
+        alreadyExists = true;
+        break;
+      }
+      const match = line.match(/^\|\s*(\d+)\s*\|/);
+      if (match) {
+        const idx = parseInt(match[1], 10);
+        if (idx > maxIndex) {
+          maxIndex = idx;
+        }
+      }
+    }
+
+    if (alreadyExists) {
+      continue; // Skip this category
+    }
+
+    const nextIndex = maxIndex + 1;
+    const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |`;
+    
+    lines.splice(lastRowIndex + 1, 0, newRow);
+    content = lines.join('\n');
   }
 
-  if (alreadyExists) {
-    return existingContent; // Problem is already in the table
-  }
-
-  const nextIndex = maxIndex + 1;
-  const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${problem.difficulty} | [Solution](${solutionPath}) | [Submission](${problemUrl}) |`;
-  
-  lines.splice(lastRowIndex + 1, 0, newRow);
-  return lines.join('\n');
+  return content;
 }

@@ -382,9 +382,16 @@ export const Popup: React.FC = () => {
 
             {/* Configured Repository */}
             <div className="flex flex-col gap-2">
-              <label className="text-[9px] font-bold tracking-wider uppercase opacity-55">
-                TARGET_REPOSITORY
-              </label>
+              <div className="flex justify-between items-center">
+                <label className="text-[9px] font-bold tracking-wider uppercase opacity-55">
+                  TARGET_REPOSITORY
+                </label>
+                {store.githubToken && store.selectedRepo && (
+                  <span className="text-[9px] font-extrabold tracking-wider uppercase" style={{ color: activeTheme.accent }}>
+                    SOLVED: {store.solvedCount}
+                  </span>
+                )}
+              </div>
               {store.repositories.length === 0 ? (
                 <div className="text-[11px] border rounded-xl p-3 leading-relaxed" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder, color: activeTheme.dangerText }}>
                   No repositories found. Ensure your token/connection has permissions to access your repositories.

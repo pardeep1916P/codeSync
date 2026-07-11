@@ -9,6 +9,7 @@ interface AppState extends UserSettings {
   user: GitHubUser | null;
   repositories: GitHubRepo[];
   error: string | null;
+  solvedCount: number;
 
   // Actions
   initialize: () => Promise<void>;
@@ -21,7 +22,7 @@ interface AppState extends UserSettings {
   clearQueue: (id?: string) => Promise<void>;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   githubToken: null,
   githubUser: null,
   selectedRepo: null,
@@ -31,6 +32,7 @@ export const useStore = create<AppState>((set) => ({
   user: null,
   repositories: [],
   error: null,
+  solvedCount: 0,
 
   initialize: async () => {
     try {
@@ -39,13 +41,15 @@ export const useStore = create<AppState>((set) => ({
       // Phase 1: Load cached user/repos from storage instantly (no spinner)
       let cachedUser: GitHubUser | null = null;
       let cachedRepos: GitHubRepo[] = [];
+      let cachedSolvedCount = 0;
 
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const cached = await new Promise<Record<string, unknown>>((resolve) => {
-          chrome.storage.local.get(['cached_user', 'cached_repos'], (res) => resolve(res));
+          chrome.storage.local.get(['cached_user', 'cached_repos', 'codesync_solved_count'], (res) => resolve(res));
         });
         if (cached.cached_user) cachedUser = cached.cached_user as GitHubUser;
         if (cached.cached_repos) cachedRepos = cached.cached_repos as GitHubRepo[];
+        if (typeof cached.codesync_solved_count === 'number') cachedSolvedCount = cached.codesync_solved_count;
       }
 
       // Immediately show UI with cached data (no loading flash)
@@ -53,6 +57,7 @@ export const useStore = create<AppState>((set) => ({
         ...settings,
         user: cachedUser,
         repositories: cachedRepos,
+        solvedCount: cachedSolvedCount,
         isLoading: false,
         error: null,
       });
@@ -72,12 +77,30 @@ export const useStore = create<AppState>((set) => ({
           }
 
           set({ user, repositories });
+
+          // Silently fetch stats.json from the selected repository to update solved count
+          if (settings.selectedRepo) {
+            try {
+              const statsFile = await client.getFileContent(settings.selectedRepo, 'stats.json');
+              if (statsFile) {
+                const stats = JSON.parse(statsFile.content);
+                if (typeof stats.solved === 'number') {
+                  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.set({ codesync_solved_count: stats.solved });
+                  }
+                  set({ solvedCount: stats.solved });
+                }
+              }
+            } catch (e) {
+              // stats.json may not exist yet
+            }
+          }
         } catch (e) {
           console.error('Failed to refresh GitHub data:', e);
           // If cache exists, keep using it. Only reset token if there's no cache.
           if (!cachedUser) {
             await storage.updateSettings({ githubToken: null, githubUser: null });
-            set({ githubToken: null, githubUser: null, user: null, repositories: [] });
+            set({ githubToken: null, githubUser: null, user: null, repositories: [], solvedCount: 0 });
           }
         }
       }
@@ -98,8 +121,24 @@ export const useStore = create<AppState>((set) => ({
         githubUser: user.login,
       });
 
+      let solvedCount = 0;
+      const settings = await storage.getSettings();
+      if (settings.selectedRepo) {
+        try {
+          const statsFile = await client.getFileContent(settings.selectedRepo, 'stats.json');
+          if (statsFile) {
+            const stats = JSON.parse(statsFile.content);
+            if (typeof stats.solved === 'number') {
+              solvedCount = stats.solved;
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ cached_user: user, cached_repos: repositories });
+        chrome.storage.local.set({ cached_user: user, cached_repos: repositories, codesync_solved_count: solvedCount });
       }
 
       set({
@@ -107,6 +146,7 @@ export const useStore = create<AppState>((set) => ({
         githubUser: user.login,
         user,
         repositories,
+        solvedCount,
         isLoading: false,
       });
     } catch (e) {
@@ -134,8 +174,24 @@ export const useStore = create<AppState>((set) => ({
           githubUser: user.login,
         });
 
+        let solvedCount = 0;
+        const settings = await storage.getSettings();
+        if (settings.selectedRepo) {
+          try {
+            const statsFile = await client.getFileContent(settings.selectedRepo, 'stats.json');
+            if (statsFile) {
+              const stats = JSON.parse(statsFile.content);
+              if (typeof stats.solved === 'number') {
+                solvedCount = stats.solved;
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          chrome.storage.local.set({ cached_user: user, cached_repos: repositories });
+          chrome.storage.local.set({ cached_user: user, cached_repos: repositories, codesync_solved_count: solvedCount });
         }
 
         set({
@@ -143,6 +199,7 @@ export const useStore = create<AppState>((set) => ({
           githubUser: user.login,
           user,
           repositories,
+          solvedCount,
           isLoading: false,
         });
       } else {
@@ -156,7 +213,7 @@ export const useStore = create<AppState>((set) => ({
   logout: async () => {
     await storage.clearSettings();
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['cached_user', 'cached_repos']);
+      chrome.storage.local.remove(['cached_user', 'cached_repos', 'codesync_solved_count']);
     }
     set({
       githubToken: null,
@@ -166,13 +223,36 @@ export const useStore = create<AppState>((set) => ({
       commitQueue: [],
       user: null,
       repositories: [],
+      solvedCount: 0,
       isLoading: false,
     });
   },
 
   selectRepo: async (repoFullName: string) => {
     await storage.updateSettings({ selectedRepo: repoFullName });
-    set({ selectedRepo: repoFullName });
+    set({ selectedRepo: repoFullName, isLoading: true });
+    
+    let solvedCount = 0;
+    const token = get().githubToken;
+    if (token) {
+      try {
+        const client = new GitHubClient(token);
+        const statsFile = await client.getFileContent(repoFullName, 'stats.json');
+        if (statsFile) {
+          const stats = JSON.parse(statsFile.content);
+          if (typeof stats.solved === 'number') {
+            solvedCount = stats.solved;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ codesync_solved_count: solvedCount });
+    }
+    set({ solvedCount, isLoading: false });
   },
 
   setSyncOnAccept: async (value: boolean) => {

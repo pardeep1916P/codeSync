@@ -2,7 +2,7 @@ import { Submission } from '../parser/types';
 import { GitHubClient } from '../github/client';
 import { ReadmeGenerator } from '../readme';
 import { storage } from '../storage';
-import { updateReadmeTable } from './readmeTable';
+import { updateReadmeTable, computeGitSha } from './readmeTable';
 export class CommitQueue {
   private isProcessing = false;
   private enqueuePromise: Promise<void> = Promise.resolve();
@@ -151,13 +151,70 @@ export class CommitQueue {
 
     const updatedReadme = updateReadmeTable(existingReadme, problem, submission);
 
-    // Atomic upload containing both files in a single Git commit
+    // Fetch existing stats.json
+    let existingStatsContent: string | null = null;
+    try {
+      const statsFile = await client.getFileContent(repoFullName, 'stats.json');
+      if (statsFile) {
+        existingStatsContent = statsFile.content;
+      }
+    } catch (e) {
+      // Ignore error
+    }
+
+    let stats: { shas: Record<string, any>; solved: number } = {
+      shas: {},
+      solved: 0
+    };
+
+    if (existingStatsContent) {
+      try {
+        stats = JSON.parse(existingStatsContent);
+        if (!stats.shas) stats.shas = {};
+      } catch (e) {
+        console.warn('Failed to parse existing stats.json, resetting stats.', e);
+      }
+    }
+
+    // Compute SHAs of files to commit
+    const codeSha = await computeGitSha(submission.code);
+    const problemReadmeSha = await computeGitSha(readmeContent);
+    const rootReadmeSha = await computeGitSha(updatedReadme);
+
+    // Update shas mapping
+    stats.shas[problem.slug] = {
+      [`${problem.slug}.${fileExtension}`]: codeSha,
+      "README.md": problemReadmeSha,
+      "difficulty": problem.difficulty.toLowerCase()
+    };
+
+    stats.shas["README.md"] = {
+      "": rootReadmeSha
+    };
+
+    // Calculate solved count (excluding README.md and stats.json keys)
+    stats.solved = Object.keys(stats.shas).filter(k => k !== 'README.md' && k !== 'stats.json').length;
+
+    // Self-hashing for stats.json
+    stats.shas["stats.json"] = { "": "" };
+    let statsStr = JSON.stringify(stats, null, 2);
+    const statsSha = await computeGitSha(statsStr);
+    stats.shas["stats.json"] = { "": statsSha };
+    statsStr = JSON.stringify(stats, null, 2);
+
+    // Cache solved count locally so popup can read it without making a GitHub request
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await chrome.storage.local.set({ codesync_solved_count: stats.solved });
+    }
+
+    // Atomic upload containing all files in a single Git commit
     await client.createCommit(repoFullName, {
       message: `feat(leetcode): add solution for ${problem.title} [${submission.language}]`,
       files: [
         { path: codePath, content: submission.code },
         { path: readmePath, content: readmeContent },
         { path: 'README.md', content: updatedReadme },
+        { path: 'stats.json', content: statsStr },
       ],
     });
   }
