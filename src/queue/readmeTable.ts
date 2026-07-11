@@ -65,8 +65,8 @@ export function updateReadmeTable(
 
   for (const tag of tags) {
     const sectionHeader = `## ${tag}`;
-    const header = `| # | Problem | Difficulty | Platform | Solution |`;
-    const separator = `| :--- | :--- | :--- | :--- | :--- |`;
+    const header = `| # | Problem | Platform | Solution |`;
+    const separator = `| :--- | :--- | :--- | :--- |`;
     const targetPattern = `[${problem.title}]`;
 
     const lines = content.split('\n');
@@ -76,7 +76,7 @@ export function updateReadmeTable(
       // Create section at the end
       let appendStr = `\n${sectionHeader}\n\n`;
       appendStr += `${header}\n${separator}\n`;
-      appendStr += `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |\n`;
+      appendStr += `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |\n`;
       content = lines.join('\n').trimEnd() + appendStr;
       continue;
     }
@@ -102,7 +102,7 @@ export function updateReadmeTable(
         '',
         header,
         separator,
-        `| 1 | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |`,
+        `| 1 | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |`,
         ''
       ];
       lines.splice(headingIndex + 1, 0, ...newTableLines);
@@ -140,7 +140,7 @@ export function updateReadmeTable(
     }
 
     const nextIndex = maxIndex + 1;
-    const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${problem.difficulty} | ${platform} #${problem.id} | [Solution](${solutionPath}) |`;
+    const newRow = `| ${nextIndex} | [${problem.title}](${problemUrl}) | ${platform} #${problem.id} | [Solution](${solutionPath}) |`;
     
     lines.splice(lastRowIndex + 1, 0, newRow);
     content = lines.join('\n');

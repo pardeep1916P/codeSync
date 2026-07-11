@@ -34,12 +34,12 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     expect(result).toContain('# CodeSync Solutions');
     expect(result).toContain('## Array');
     expect(result).toContain('## Hash Table');
-    expect(result).toContain('| # | Problem | Difficulty | Platform | Solution |');
-    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |');
+    expect(result).toContain('| # | Problem | Platform | Solution |');
+    expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |');
   });
 
   it('should append solutions under the correct topic heading', () => {
-    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Difficulty | Platform | Solution |\n| :--- | :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
+    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Solution |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
     
     const secondProblem: Problem = {
       id: '217',
@@ -63,7 +63,7 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     const result = updateReadmeTable(initialContent, secondProblem, secondSubmission);
     expect(result).toContain('## Array');
     expect(result).toContain('| 1 | [Two Sum]');
-    expect(result).toContain('| 2 | [Contains Duplicate](https://leetcode.com/problems/contains-duplicate/) | Easy | LeetCode #217 | [Solution](./contains-duplicate/contains-duplicate.java) |');
+    expect(result).toContain('| 2 | [Contains Duplicate](https://leetcode.com/problems/contains-duplicate/) | LeetCode #217 | [Solution](./contains-duplicate/contains-duplicate.java) |');
   });
 
   it('should support multi-topic grouping for the same problem under all its tags', () => {
@@ -89,11 +89,11 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     const result = updateReadmeTable(null, problem, submission);
     expect(result).toContain('## Tree');
     expect(result).toContain('## Binary Tree');
-    expect(result).toContain('| 1 | [Invert Binary Tree](https://leetcode.com/problems/invert-binary-tree/) | Easy | LeetCode #226 | [Solution](./invert-binary-tree/invert-binary-tree.java) |');
+    expect(result).toContain('| 1 | [Invert Binary Tree](https://leetcode.com/problems/invert-binary-tree/) | LeetCode #226 | [Solution](./invert-binary-tree/invert-binary-tree.java) |');
   });
 
   it('should not add duplicate problems in the same section', () => {
-    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Difficulty | Platform | Solution |\n| :--- | :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | Easy | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
+    const initialContent = `# CodeSync Solutions\n\n## Array\n\n| # | Problem | Platform | Solution |\n| :--- | :--- | :--- | :--- |\n| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [Solution](./two-sum/two-sum.cpp) |\n`;
     
     const result = updateReadmeTable(initialContent, mockProblem, mockSubmission);
     // Since mockProblem has 'Array' and 'Hash Table', and 'Array' already has 'Two Sum',
