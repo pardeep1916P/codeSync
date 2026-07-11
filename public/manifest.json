@@ -10,7 +10,8 @@
     "notifications"
   ],
   "host_permissions": [
-    "https://leetcode.com/*",
+    "https://*.leetcode.com/*",
+    "https://*.leetcode.cn/*",
     "https://api.github.com/*",
     "https://github.com/*"
   ],
@@ -26,7 +27,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://leetcode.com/problems/*"
+        "https://*.leetcode.com/*",
+        "https://*.leetcode.cn/*"
       ],
       "js": [
         "content.js"
