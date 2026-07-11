@@ -209,7 +209,7 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR42u3SQREAAAgEoNu/tDl2sg9+CGB55VJRAAMECBAgQIAAAQIECBAgQIAZbx4J87rD/4gAAAAASUVORK5CYII=';
+        const DEFAULT_ICON = 'icon.png';
         chrome.notifications.create(`sync_${Date.now()}`, {
           type: 'basic',
           iconUrl: DEFAULT_ICON,
@@ -239,7 +239,7 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAALUlEQVR42u3SQREAAAgEoNu/tDl2sg9+CGB55VJRAAMECBAgQIAAAQIECBAgQIAZbx4J87rD/4gAAAAASUVORK5CYII=';
+        const DEFAULT_ICON = 'icon.png';
         chrome.notifications.create(`queued_${Date.now()}`, {
           type: 'basic',
           iconUrl: DEFAULT_ICON,

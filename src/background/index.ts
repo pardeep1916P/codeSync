@@ -28,7 +28,9 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 // Listen for messages from content scripts or UI panels
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[CodeSync:Background] Received runtime message:', message.action, 'from:', sender.tab?.url || 'UI');
+  
   if (message.action === 'ENQUEUE_SUBMISSION') {
     const submission = message.payload as Submission;
     console.log('Received submission from content script:', submission);
