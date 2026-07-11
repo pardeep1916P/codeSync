@@ -228,20 +228,6 @@ export const Popup: React.FC = () => {
         <div className="flex items-center gap-2">
           <span className="font-extrabold" style={{ color: activeTheme.accent }}>$</span>
           <span className="text-xs font-bold tracking-wider" style={{ color: activeTheme.textHighlight }}>codesync --status</span>
-          {store.githubToken && (
-            <span 
-              className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0"
-              style={{
-                backgroundColor: store.syncOnAccept ? 'rgba(34, 197, 94, 0.15)' : 'rgba(249, 115, 22, 0.15)',
-                color: store.syncOnAccept ? activeTheme.accent : '#f97316',
-                border: `1px solid ${store.syncOnAccept ? 'rgba(34, 197, 94, 0.3)' : 'rgba(249, 115, 22, 0.3)'}`
-              }}
-              title={store.syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue"}
-            >
-              <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: store.syncOnAccept ? activeTheme.accent : '#f97316' }}></span>
-              {store.syncOnAccept ? 'AUTO' : 'QUEUE'}
-            </span>
-          )}
         </div>
         <div className="flex items-center gap-2 relative theme-dropdown-container">
           {/* Theme Dropdown Toggle */}
@@ -493,6 +479,20 @@ export const Popup: React.FC = () => {
                
                <div className="flex items-center justify-between">
                  <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
+                 {store.githubToken && (
+                   <span 
+                     className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 animate-fade-in"
+                     style={{
+                       backgroundColor: store.syncOnAccept ? 'rgba(34, 197, 94, 0.12)' : 'rgba(249, 115, 22, 0.12)',
+                       color: store.syncOnAccept ? activeTheme.accent : '#f97316',
+                       border: `1px solid ${store.syncOnAccept ? 'rgba(34, 197, 94, 0.25)' : 'rgba(249, 115, 22, 0.25)'}`
+                     }}
+                     title={store.syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue"}
+                   >
+                     <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: store.syncOnAccept ? activeTheme.accent : '#f97316' }}></span>
+                     {store.syncOnAccept ? 'AUTO_SYNC: ACTIVE' : 'AUTO_SYNC: INACTIVE'}
+                   </span>
+                 )}
                </div>
 
                {/* Action Buttons */}
