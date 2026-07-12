@@ -179,6 +179,7 @@ export const Popup: React.FC = () => {
   };
 
   const handleManualSync = () => {
+    if (store.commitQueue.length === 0) return;
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({ action: 'TRIGGER_SYNC' }, (response) => {
         if (response?.success) {
@@ -499,13 +500,13 @@ export const Popup: React.FC = () => {
                <div className="flex gap-2">
                  <Button 
                     onClick={handleManualSync} 
-                    disabled={!store.selectedRepo || store.isSyncing}
+                    disabled={!store.selectedRepo || store.isSyncing || store.commitQueue.length === 0}
                     className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2"
                     style={{ 
-                      backgroundColor: store.isSyncing ? activeTheme.cardBg : activeTheme.accent, 
-                      color: store.isSyncing ? activeTheme.text : activeTheme.bg,
+                      backgroundColor: (store.isSyncing || store.commitQueue.length === 0) ? activeTheme.cardBg : activeTheme.accent, 
+                      color: (store.isSyncing || store.commitQueue.length === 0) ? activeTheme.text : activeTheme.bg,
                       borderColor: activeTheme.border,
-                      borderWidth: store.isSyncing ? '1px' : '0px'
+                      borderWidth: (store.isSyncing || store.commitQueue.length === 0) ? '1px' : '0px'
                     }}
                   >
                     {store.isSyncing ? (
