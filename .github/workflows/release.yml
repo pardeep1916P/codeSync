@@ -41,6 +41,9 @@ jobs:
 
       - name: Build Extension
         run: npm run build
+        env:
+          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
+          VITE_GITHUB_CLIENT_SECRET: ${{ secrets.VITE_GITHUB_CLIENT_SECRET }}
 
       - name: Archive Production Artifacts
         run: |
