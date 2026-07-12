@@ -1,26 +1,60 @@
 import { CommitQueue } from '../queue';
 import { Submission } from '../parser/types';
+import { storage } from '../storage';
 
 const queue = new CommitQueue();
 
 // Listen for runtime extension installation
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('CodeSync extension installed.');
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('CodeSync extension installed/updated.');
   
   // Set up an alarm to process the queue periodically (every 5 minutes)
   chrome.alarms.create('process-queue-alarm', { periodInMinutes: 5 });
+
+  // Programmatically inject content script into all active LeetCode tabs
+  try {
+    const tabs = await chrome.tabs.query({
+      url: [
+        '*://*.leetcode.com/*',
+        '*://leetcode.com/*',
+        '*://*.leetcode.cn/*',
+        '*://leetcode.cn/*'
+      ]
+    });
+    for (const tab of tabs) {
+      if (tab.id && tab.url && !tab.url.startsWith('chrome://')) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        }).catch((err) => {
+          console.warn(`Failed to inject content script into tab ${tab.id}:`, err);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error during programmatic script injection:', err);
+  }
 });
 
 // Listen for alarm triggers
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'process-queue-alarm') {
-    console.log('Alarm triggered: processing queue...');
-    queue.processQueue().catch(console.error);
+    console.log('Alarm triggered: checking settings...');
+    storage.getSettings().then((settings) => {
+      if (settings.syncOnAccept) {
+        console.log('Instant sync is ON. Processing queue...');
+        queue.processQueue().catch(console.error);
+      } else {
+        console.log('Alarm: Instant sync is OFF. Skipping auto-processing.');
+      }
+    }).catch(console.error);
   }
 });
 
 // Listen for messages from content scripts or UI panels
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('[CodeSync:Background] Received runtime message:', message.action, 'from:', sender.tab?.url || 'UI');
+  
   if (message.action === 'ENQUEUE_SUBMISSION') {
     const submission = message.payload as Submission;
     console.log('Received submission from content script:', submission);
@@ -42,4 +76,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     
     return true;
   }
+
+  return false;
 });

@@ -19,12 +19,12 @@ export const storage = {
     if (typeof chrome === 'undefined' || !chrome.storage) {
       // Fallback for development/testing environment
       const local = localStorage.getItem('codesync_settings');
-      return local ? JSON.parse(local) : DEFAULT_SETTINGS;
+      return local ? { ...DEFAULT_SETTINGS, ...JSON.parse(local) } : DEFAULT_SETTINGS;
     }
 
     return new Promise((resolve) => {
       chrome.storage.local.get('settings', (result) => {
-        resolve(result.settings || DEFAULT_SETTINGS);
+        resolve(result.settings ? { ...DEFAULT_SETTINGS, ...result.settings } : DEFAULT_SETTINGS);
       });
     });
   },

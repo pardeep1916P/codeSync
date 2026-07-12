@@ -3,18 +3,34 @@
   "name": "CodeSync",
   "version": "1.0.0",
   "description": "Synchronize accepted coding problems to GitHub",
+  "icons": {
+    "16": "icon.png",
+    "32": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
   "permissions": [
     "storage",
-    "alarms"
+    "alarms",
+    "identity",
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
-    "https://leetcode.com/*",
+    "https://*.leetcode.com/*",
+    "https://*.leetcode.cn/*",
     "https://api.github.com/*",
     "https://github.com/*"
   ],
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "CodeSync"
+    "default_title": "CodeSync",
+    "default_icon": {
+      "16": "icon.png",
+      "32": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
   },
   "options_page": "src/options/index.html",
   "background": {
@@ -24,12 +40,24 @@
   "content_scripts": [
     {
       "matches": [
-        "https://leetcode.com/problems/*"
+        "https://*.leetcode.com/*",
+        "https://*.leetcode.cn/*"
       ],
       "js": [
         "content.js"
       ],
       "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "interceptor.js"
+      ],
+      "matches": [
+        "https://*.leetcode.com/*",
+        "https://*.leetcode.cn/*"
+      ]
     }
   ]
 }
