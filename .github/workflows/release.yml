@@ -1,0 +1,57 @@
+name: Build and Release Extension
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.skills/**'
+      - 'context/**'
+      - 'README.md'
+      - 'LICENSE'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Tests
+        run: npm run test -- --run
+
+      - name: Build Extension
+        run: npm run build
+
+      - name: Archive Production Artifacts
+        run: |
+          cd dist
+          zip -r ../codesync-extension.zip .
+          cd ..
+
+      - name: Create Release Package
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: codesync-extension.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

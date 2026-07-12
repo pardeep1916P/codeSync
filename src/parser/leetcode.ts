@@ -56,7 +56,6 @@ export class LeetCodeAdapter implements PlatformAdapter {
         status: 'ACCEPTED',
       };
     } catch (error) {
-      console.error('Failed to parse LeetCode submission:', error);
       return null;
     }
   }

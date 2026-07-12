@@ -22,7 +22,6 @@ export class CommitQueue {
     
     // Check for duplicates of the exact same submission ID
     if (settings.commitQueue.includes(submission.id)) {
-      console.log(`Submission ${submission.id} is already in the queue.`);
       return;
     }
 
@@ -36,7 +35,6 @@ export class CommitQueue {
       const isSameLanguage = data && data.language && submission.language && data.language.toLowerCase().trim() === submission.language.toLowerCase().trim();
       
       if (isSameProblem && isSameLanguage) {
-        console.log(`Deduplicating: removing older pending submission ${id} for problem ${submission.problem.slug} [${submission.language}]`);
         keysToRemove.push(`sub_${id}`);
       } else {
         cleanedQueue.push(id);
@@ -67,7 +65,6 @@ export class CommitQueue {
     if (settings.syncOnAccept) {
       await this.processQueue();
     } else {
-      console.log(`Instant sync is OFF. Submission "${submission.problem.title}" queued (${updatedQueue.length} pending).`);
       // Notify the popup that the queue updated so the count refreshes
       this.notifyQueueUpdated(updatedQueue.length, submission.problem.title);
     }
@@ -87,7 +84,6 @@ export class CommitQueue {
     try {
       const settings = await storage.getSettings();
       if (!settings.githubToken || !settings.selectedRepo) {
-        console.warn('GitHub is not configured. Queue processing paused.');
         this.isProcessing = false;
         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
           await chrome.storage.local.set({ codesync_is_syncing: false });
@@ -97,13 +93,10 @@ export class CommitQueue {
 
       const client = new GitHubClient(settings.githubToken);
       const pendingIds = [...settings.commitQueue];
-      console.log(`Starting queue processing. Found ${pendingIds.length} pending submissions.`);
 
       for (const submissionId of pendingIds) {
-        console.log(`Processing submission ID: ${submissionId}`);
         const submission = await this.getSubmissionData(submissionId);
         if (!submission) {
-          console.warn(`Submission data for ID ${submissionId} is missing or corrupt. Removing from queue.`);
           // Clean up orphan ID
           await this.removeIdFromQueue(submissionId);
           continue;
@@ -115,10 +108,8 @@ export class CommitQueue {
           // Remove from queue on success
           await this.removeIdFromQueue(submissionId);
           await this.clearSubmissionData(submissionId);
-          console.log(`Successfully synced submission ${submissionId}`);
           this.notifySyncResult(submission.problem.title, true);
         } catch (error) {
-          console.error(`Failed to upload submission ${submissionId}:`, error);
           this.notifySyncResult(submission.problem.title, false, (error as Error).message);
           // Stop queue processing and keep it in the queue for retries
           break;
@@ -191,7 +182,7 @@ export class CommitQueue {
         stats = JSON.parse(existingStatsContent);
         if (!stats.shas) stats.shas = {};
       } catch (e) {
-        console.warn('Failed to parse existing stats.json, resetting stats.', e);
+        // Reset stats silently on parse error
       }
     }
 
@@ -304,9 +295,7 @@ export class CommitQueue {
             : `Failed to sync "${problemTitle}": ${errorMessage || 'Unknown error'}`,
           priority: 2
         }, () => {
-          if (chrome.runtime.lastError) {
-            console.warn('[CodeSync] Notification error (sync):', chrome.runtime.lastError.message);
-          }
+          // Silent notification callback
         });
       }
     }
@@ -332,9 +321,7 @@ export class CommitQueue {
           message: `"${problemTitle}" added to queue (${queueLength} pending). Sync manually or wait for auto-sync.`,
           priority: 1
         }, () => {
-          if (chrome.runtime.lastError) {
-            console.warn('[CodeSync] Notification error (queue):', chrome.runtime.lastError.message);
-          }
+          // Silent notification callback
         });
       }
     }

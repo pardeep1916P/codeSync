@@ -130,7 +130,6 @@ export const useStore = create<AppState>((set, get) => ({
             }
           }
         } catch (e) {
-          console.error('Failed to refresh GitHub data:', e);
           // If cache exists, keep using it. Only reset token if there's no cache.
           if (!cachedUser) {
             await storage.updateSettings({ githubToken: null, githubUser: null });

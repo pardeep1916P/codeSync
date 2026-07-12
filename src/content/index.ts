@@ -212,15 +212,12 @@ async function handleAcceptedSubmission(data: SubmissionData) {
 
   // If we don't have full details, fetch them
   if (!question || !code) {
-    console.log(`[CodeSync] Fetching full details for submission ${subId}...`);
     const details = await fetchSubmissionDetails(subId);
     if (!details) {
-      console.error(`[CodeSync] Failed to fetch details for submission ${subId}.`);
       processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
     if (details.statusCode !== 10) {
-      console.log(`[CodeSync] Submission ${subId} is not Accepted (status=${details.statusCode}).`);
       processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
@@ -231,7 +228,6 @@ async function handleAcceptedSubmission(data: SubmissionData) {
   }
 
   if (!question) {
-    console.error(`[CodeSync] No question data for submission ${subId}.`);
     processedSubmissionIds.delete(subId); // Release lock on failure
     return;
   }
@@ -262,27 +258,13 @@ async function handleAcceptedSubmission(data: SubmissionData) {
   // Mark processed BEFORE sending to prevent duplicates from rapid-fire events
   await markAsProcessed(subId);
 
-  console.log('[CodeSync] Sending accepted submission to background:', submission.problem.title);
-
   chrome.runtime.sendMessage(
-    { action: 'ENQUEUE_SUBMISSION', payload: submission },
-    (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('[CodeSync] Error sending to background:', chrome.runtime.lastError);
-        return;
-      }
-      if (response?.success) {
-        console.log('[CodeSync] Submission enqueued successfully!');
-      } else {
-        console.error('[CodeSync] Failed to enqueue:', response?.error);
-      }
-    }
+    { action: 'ENQUEUE_SUBMISSION', payload: submission }
   );
 }
 
 // ── Main entry point ───────────────────────────────────────────────────────
 function initContentScript() {
-  console.log('[CodeSync] Content script active on:', window.location.href);
 
   // Inject the network interceptor into the page context
   const script = document.createElement('script');
@@ -298,7 +280,6 @@ function initContentScript() {
     if (event.source !== window) return;
 
     if (event.data?.type === 'CODESYNC_SUBMISSION_ACCEPTED') {
-      console.log('[CodeSync] Intercepted accepted submission from network:', event.data.payload);
       await handleAcceptedSubmission(event.data.payload);
     }
 
@@ -306,7 +287,6 @@ function initContentScript() {
       // We only have the ID from the judging progress, need to fetch details
       const subId = event.data.payload.submissionId;
       if (subId) {
-        console.log('[CodeSync] Judging accepted detected, fetching details for:', subId);
         await handleAcceptedSubmission({
           submissionId: subId,
           code: '',
@@ -321,7 +301,6 @@ function initContentScript() {
       // From submission list polling — also fetch full details
       const subId = event.data.payload.submissionId;
       if (subId) {
-        console.log('[CodeSync] Submission list accepted detected:', subId);
         await handleAcceptedSubmission({
           submissionId: subId,
           code: '',

@@ -25,7 +25,6 @@ export class GitHubOAuth {
 
   async authenticate(): Promise<string | null> {
     if (typeof chrome === 'undefined' || !chrome.identity) {
-      console.warn('chrome.identity is not available. Simulating OAuth redirect.');
       window.open(this.getAuthUrl(), '_blank');
       return null;
     }
@@ -38,7 +37,6 @@ export class GitHubOAuth {
         },
         async (redirectUrl) => {
           if (!redirectUrl) {
-            console.error('OAuth flow canceled or failed:', chrome.runtime.lastError);
             resolve(null);
             return;
           }
@@ -80,7 +78,6 @@ export class GitHubOAuth {
       const data = await response.json();
       return data.access_token || '';
     } catch (error) {
-      console.error('Error exchanging code for token:', error);
       throw error;
     }
   }
