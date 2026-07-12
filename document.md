@@ -4,6 +4,28 @@ This document contains technical information regarding the architecture, develop
 
 ---
 
+## 🛠️ Local Installation & Development Setup
+
+If you want to run or test the extension locally, follow these steps:
+
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/pardeep1916P/codeSync.git
+   cd codeSync
+   ```
+2. **Install Dependencies & Build**:
+   ```bash
+   npm install
+   npm run build
+   ```
+3. **Load the Extension into Chrome**:
+   - Open Google Chrome and navigate to `chrome://extensions/`.
+   - Enable **Developer mode** in the top-right corner.
+   - Click **Load unpacked** in the top-left corner.
+   - Select the `dist/` directory generated in the project root folder.
+
+---
+
 ## 💻 Development Commands
 
 * **`npm run dev`** — Launch Vite development server.
