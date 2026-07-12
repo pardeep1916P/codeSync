@@ -8,7 +8,9 @@ on:
       - '.skills/**'
       - 'context/**'
       - 'README.md'
+      - 'document.md'
       - 'LICENSE'
+      - 'public/showcase.png'
   release:
     types: [published]
   workflow_dispatch:
