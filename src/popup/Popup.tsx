@@ -257,6 +257,7 @@ export const Popup: React.FC = () => {
                 color: activeTheme.text 
               }}
               title="Refresh GitHub data"
+              aria-label="Refresh GitHub data"
             >
               <svg className={`w-4 h-4 fill-none stroke-current ${isRefreshingGithub ? 'animate-spin' : ''}`} viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 4v6h-6" />

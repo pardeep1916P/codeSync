@@ -353,7 +353,11 @@ export const useStore = create<AppState>((set, get) => ({
         });
       }
 
-      set({ user, repositories });
+      await storage.updateSettings({
+        githubUser: user.login,
+      });
+
+      set({ user, repositories, githubUser: user.login });
 
       const settings = await storage.getSettings();
       if (settings.selectedRepo) {
