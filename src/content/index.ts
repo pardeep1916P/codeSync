@@ -246,7 +246,7 @@ async function handleAcceptedSubmission(data: SubmissionData) {
       slug: question.titleSlug || getQuestionSlug(),
       difficulty: difficultyMap[question.difficulty] || 'Medium',
       description: htmlToMarkdown(question.content),
-      tags: (question.topicTags || []).map((t: any) => t.name),
+      tags: (question.topicTags || []).map((t: { name: string }) => t.name),
       url: `https://leetcode.com/problems/${question.titleSlug || getQuestionSlug()}/`,
     },
     language: lang,

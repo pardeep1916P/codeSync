@@ -43,7 +43,7 @@ export class LeetCodeAdapter implements PlatformAdapter {
         slug: details.question.titleSlug,
         difficulty: difficultyMap[details.question.difficulty] || 'Medium',
         description: this.htmlToMarkdown(details.question.content),
-        tags: (details.question.topicTags || []).map((t: any) => t.name),
+        tags: (details.question.topicTags || []).map((t: { name: string }) => t.name),
         url: `https://leetcode.com/problems/${details.question.titleSlug}/`,
       };
 

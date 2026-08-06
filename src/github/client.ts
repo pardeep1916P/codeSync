@@ -152,7 +152,7 @@ export class GitHubClient {
     const newTreeSha = newTreeResponse.sha;
 
     // 5. Create the commit object referencing the new tree and base commit parent
-    const commitParams: any = {
+    const commitParams: Record<string, unknown> = {
       message: payload.message,
       tree: newTreeSha,
       parents: [latestCommitSha],

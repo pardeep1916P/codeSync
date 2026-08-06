@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 if (!(window as any).__codeSyncInjected) {
   (window as any).__codeSyncInjected = true;
 
@@ -86,11 +87,11 @@ if (!(window as any).__codeSyncInjected) {
             }
           }
         }).catch(function() {
-          // Silently ignore non-JSON responses
+          // Ignore JSON parse errors
         });
       }
-    } catch(e) {
-      // Never break the page
+    } catch (e) {
+      // Ignore interceptor errors
     }
 
     return response;
@@ -146,7 +147,9 @@ if (!(window as any).__codeSyncInjected) {
               }, '*');
             }
           }
-        } catch(e) {}
+        } catch {
+          // Ignore JSON parse errors
+        }
       });
     }
     return originalXHRSend.call(this, body);

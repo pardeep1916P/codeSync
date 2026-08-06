@@ -172,7 +172,7 @@ export class CommitQueue {
       // Ignore error
     }
 
-    let stats: { shas: Record<string, any>; solved: number } = {
+    let stats: { shas: Record<string, Record<string, string>>; solved: number } = {
       shas: {},
       solved: 0
     };

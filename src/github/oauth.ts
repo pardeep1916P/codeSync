@@ -61,24 +61,20 @@ export class GitHubOAuth {
   private async exchangeCodeForToken(code: string): Promise<string> {
     // Note: Direct client-side code exchange is blocked by CORS by GitHub, so a secure backend proxy
     // is normally used. This is a template configuration.
-    try {
-      const response = await fetch('https://github.com/login/oauth/access_token', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          client_id: this.config.clientId,
-          client_secret: this.config.clientSecret,
-          code,
-        }),
-      });
+    const response = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: this.config.clientId,
+        client_secret: this.config.clientSecret,
+        code,
+      }),
+    });
 
-      const data = await response.json();
-      return data.access_token || '';
-    } catch (error) {
-      throw error;
-    }
+    const data = await response.json();
+    return data.access_token || '';
   }
 }

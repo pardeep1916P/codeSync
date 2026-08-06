@@ -35,7 +35,7 @@ export async function computeGitSha(content: string): Promise<string> {
 
   const subtleCrypto = typeof crypto !== 'undefined' && crypto.subtle 
     ? crypto.subtle 
-    : (globalThis as any).crypto?.subtle;
+    : (globalThis as unknown as { crypto?: { subtle?: SubtleCrypto } }).crypto?.subtle;
 
   if (!subtleCrypto) {
     throw new Error('Web Crypto API (crypto.subtle) is not available in this environment.');
@@ -43,7 +43,7 @@ export async function computeGitSha(content: string): Promise<string> {
 
   const hashBuffer = await subtleCrypto.digest('SHA-1', gitBlobBytes);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b: any) => b.toString(16).padStart(2, '0')).join('');
+  return hashArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
 }
 
 const DISPLAY_LANGUAGES: Record<string, string> = {
