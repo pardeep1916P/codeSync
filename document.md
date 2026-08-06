@@ -43,7 +43,7 @@ We use **GitHub Actions** to automate our code verification and release packagin
   - Agent instruction skills (`.skills/**`)
   - Project specification logs (`context/**`)
   - Repository documentation (`README.md`, `LICENSE`)
-- **Automated Releases**: When a new release is published, the workflow automatically compiles the extension and attaches the ready-to-load extension archive (`codesync-extension.zip`) directly to the release page as a download asset.
+- **Automated GitHub Releases**: On every push to `main`, the workflow automatically compiles the production extension, creates/updates the `v1.0.0` Release on GitHub, and attaches `codesync-extension.zip` directly to the release page.
 - **Repository Secrets**: To inject your OAuth credentials during automated builds, add them as secrets in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
   - `VITE_GITHUB_CLIENT_ID`: Your GitHub OAuth App Client ID.
   - `VITE_GITHUB_CLIENT_SECRET`: Your GitHub OAuth App Client Secret.
