@@ -166,7 +166,7 @@ export class GitHubClient {
         name = user.name || user.login || name;
         email = user.email || `${user.login}@users.noreply.github.com`;
       } catch (e) {
-        console.warn('Failed to resolve commit author details, using fallback:', e);
+        // Silent fallback
       }
       commitParams.author = {
         name,

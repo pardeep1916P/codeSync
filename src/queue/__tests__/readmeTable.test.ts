@@ -31,7 +31,8 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
 
   it('should initialize a README with tag headings and table sorted alphabetically', () => {
     const result = updateReadmeTable(null, mockProblem, mockSubmission);
-    expect(result).toContain('# CodeSync Solutions');
+    expect(result).toContain('# LeetCode Solutions');
+    expect(result).toContain('*Synced automatically using [CodeSync]');
     
     // Verify alphabetical sorting of sections
     const arrayIndex = result.indexOf('## Array');

@@ -21,7 +21,6 @@ if (!(window as any).__codeSyncInjected) {
             const subId = match ? match[1] : null;
             const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted';
             if (subId && isAccepted) {
-              console.log('[CodeSync] Intercepted accepted check response. ID:', subId);
               window.postMessage({
                 type: 'CODESYNC_JUDGING_ACCEPTED',
                 payload: {
@@ -121,7 +120,6 @@ if (!(window as any).__codeSyncInjected) {
             const subId = match ? match[1] : null;
             const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted';
             if (subId && isAccepted) {
-              console.log('[CodeSync] Intercepted XHR accepted check response. ID:', subId);
               window.postMessage({
                 type: 'CODESYNC_JUDGING_ACCEPTED',
                 payload: {
@@ -154,6 +152,6 @@ if (!(window as any).__codeSyncInjected) {
     return originalXHRSend.call(this, body);
   };
 
-  console.log('[CodeSync] Network interceptor injected successfully.');
+  // Injected successfully
 }
 export {};

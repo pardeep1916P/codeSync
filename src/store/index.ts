@@ -23,6 +23,7 @@ interface AppState extends UserSettings {
   setSyncOnAccept: (value: boolean) => Promise<void>;
   removeItemFromQueue: (id: string) => Promise<void>;
   clearQueue: (id?: string) => Promise<void>;
+  refreshGithubData: (silent?: boolean) => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -130,7 +131,6 @@ export const useStore = create<AppState>((set, get) => ({
             }
           }
         } catch (e) {
-          console.error('Failed to refresh GitHub data:', e);
           // If cache exists, keep using it. Only reset token if there's no cache.
           if (!cachedUser) {
             await storage.updateSettings({ githubToken: null, githubUser: null });
@@ -247,7 +247,8 @@ export const useStore = create<AppState>((set, get) => ({
   logout: async () => {
     await storage.clearSettings();
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.remove(['cached_user', 'cached_repos', 'codesync_solved_count']);
+      await chrome.storage.local.remove(['cached_user', 'cached_repos', 'codesync_solved_count']);
+      await chrome.storage.local.set({ codesync_is_syncing: false });
     }
     set({
       githubToken: null,
@@ -259,6 +260,7 @@ export const useStore = create<AppState>((set, get) => ({
       repositories: [],
       solvedCount: 0,
       isLoading: false,
+      isSyncing: false,
     });
   },
 
@@ -302,11 +304,17 @@ export const useStore = create<AppState>((set, get) => ({
     const key = `sub_${id}`;
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       await chrome.storage.local.remove([key]);
+      if (updatedQueue.length === 0) {
+        await chrome.storage.local.set({ codesync_is_syncing: false });
+      }
     } else if (typeof localStorage !== 'undefined') {
       localStorage.removeItem(key);
     }
     
-    set({ commitQueue: updatedQueue });
+    set({ 
+      commitQueue: updatedQueue,
+      isSyncing: updatedQueue.length === 0 ? false : get().isSyncing
+    });
   },
 
   clearQueue: async () => {
@@ -315,11 +323,64 @@ export const useStore = create<AppState>((set, get) => ({
     
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       await chrome.storage.local.remove(keysToRemove);
+      await chrome.storage.local.set({ codesync_is_syncing: false });
     } else if (typeof localStorage !== 'undefined') {
       keysToRemove.forEach(k => localStorage.removeItem(k));
     }
     
     await storage.updateSettings({ commitQueue: [] });
-    set({ commitQueue: [] });
+    set({ commitQueue: [], isSyncing: false });
+  },
+
+  refreshGithubData: async (silent = false) => {
+    if (!silent) set({ isLoading: true });
+    set({ error: null });
+    try {
+      const token = get().githubToken;
+      if (!token) return;
+      
+      const client = new GitHubClient(token);
+      const [user, repositories] = await Promise.all([
+        client.getUser(),
+        client.getRepositories(),
+      ]);
+
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({ 
+          cached_user: user, 
+          cached_repos: repositories,
+          last_github_refresh: Date.now()
+        });
+      }
+
+      await storage.updateSettings({
+        githubUser: user.login,
+      });
+
+      set({ user, repositories, githubUser: user.login });
+
+      const settings = await storage.getSettings();
+      if (settings.selectedRepo) {
+        try {
+          const statsFile = await client.getFileContent(settings.selectedRepo, 'stats.json');
+          if (statsFile) {
+            const stats = JSON.parse(statsFile.content);
+            if (typeof stats.solved === 'number') {
+              if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                await chrome.storage.local.set({ codesync_solved_count: stats.solved });
+              }
+              set({ solvedCount: stats.solved });
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      set({ error: (e as Error).message });
+      throw e;
+    } finally {
+      if (!silent) set({ isLoading: false });
+    }
   },
 }));

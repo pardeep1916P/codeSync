@@ -26,6 +26,7 @@ export const Popup: React.FC = () => {
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [isThemeDropdownOpen, setIsThemeDropdownOpen] = useState(false);
   const [isQueueDropdownOpen, setIsQueueDropdownOpen] = useState(false);
+  const [isRefreshingGithub, setIsRefreshingGithub] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -172,6 +173,19 @@ export const Popup: React.FC = () => {
     }, 4000);
   };
 
+  const handleRefreshGithubData = async () => {
+    if (isRefreshingGithub) return;
+    setIsRefreshingGithub(true);
+    try {
+      await store.refreshGithubData(true);
+      showToast('GitHub data refreshed successfully!', 'success');
+    } catch (err) {
+      showToast(`Failed to refresh: ${(err as Error).message}`, 'error');
+    } finally {
+      setIsRefreshingGithub(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenInput.trim()) return;
@@ -179,6 +193,7 @@ export const Popup: React.FC = () => {
   };
 
   const handleManualSync = () => {
+    if (store.commitQueue.length === 0) return;
     if (typeof chrome !== 'undefined' && chrome.runtime) {
       chrome.runtime.sendMessage({ action: 'TRIGGER_SYNC' }, (response) => {
         if (response?.success) {
@@ -230,6 +245,28 @@ export const Popup: React.FC = () => {
           <span className="text-xs font-bold tracking-wider" style={{ color: activeTheme.textHighlight }}>codesync --status</span>
         </div>
         <div className="flex items-center gap-2 relative theme-dropdown-container">
+          {/* Refresh GitHub Data */}
+          {store.githubToken && (
+            <button 
+              onClick={handleRefreshGithubData}
+              disabled={isRefreshingGithub}
+              className={`p-1 rounded-lg border transition-all duration-150 flex items-center justify-center ${isRefreshingGithub ? 'animate-pulse opacity-50' : ''}`}
+              style={{ 
+                borderColor: activeTheme.border, 
+                backgroundColor: activeTheme.inputBg,
+                color: activeTheme.text 
+              }}
+              title="Refresh GitHub data"
+              aria-label="Refresh GitHub data"
+            >
+              <svg className={`w-4 h-4 fill-none stroke-current ${isRefreshingGithub ? 'animate-spin' : ''}`} viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 4v6h-6" />
+                <path d="M1 20v-6h6" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </button>
+          )}
+
           {/* Theme Dropdown Toggle */}
           <button 
             onClick={() => setIsThemeDropdownOpen(!isThemeDropdownOpen)}
@@ -499,13 +536,13 @@ export const Popup: React.FC = () => {
                <div className="flex gap-2">
                  <Button 
                     onClick={handleManualSync} 
-                    disabled={!store.selectedRepo || store.isSyncing}
+                    disabled={!store.selectedRepo || store.isSyncing || store.commitQueue.length === 0}
                     className="flex-1 py-2.5 text-xs font-bold tracking-wider uppercase rounded-xl transition-all flex items-center justify-center gap-2"
                     style={{ 
-                      backgroundColor: store.isSyncing ? activeTheme.cardBg : activeTheme.accent, 
-                      color: store.isSyncing ? activeTheme.text : activeTheme.bg,
+                      backgroundColor: (store.isSyncing || store.commitQueue.length === 0) ? activeTheme.cardBg : activeTheme.accent, 
+                      color: (store.isSyncing || store.commitQueue.length === 0) ? activeTheme.text : activeTheme.bg,
                       borderColor: activeTheme.border,
-                      borderWidth: store.isSyncing ? '1px' : '0px'
+                      borderWidth: (store.isSyncing || store.commitQueue.length === 0) ? '1px' : '0px'
                     }}
                   >
                     {store.isSyncing ? (
