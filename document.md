@@ -47,6 +47,7 @@ We use **GitHub Actions** to automate our code verification and release packagin
 - **Repository Secrets**: To inject your OAuth credentials during automated builds, add them as secrets in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
   - `VITE_GITHUB_CLIENT_ID`: Your GitHub OAuth App Client ID.
   - `VITE_GITHUB_CLIENT_SECRET`: Your GitHub OAuth App Client Secret.
+  - `CHROME_EXTENSION_ID`: Your Chrome Web Store Extension ID (`abdemcedoopepnjfjdbgomcandofbljd`).
 - **Local Development Environment**: For local testing, copy `.env.example` to `.env` and configure your local credentials. The `.env` file is excluded from Git tracking in `.gitignore` to keep credentials secure.
 
 ---
