@@ -65,7 +65,8 @@ jobs:
           makeLatest: true
 
       - name: Publish to Chrome Web Store
-        if: secrets.CHROME_CLIENT_ID != ''
+        if: ${{ secrets.CHROME_CLIENT_ID != '' }}
+        continue-on-error: true
         uses: mnao305/chrome-webstore-upload-action@v2
         with:
           file-path: 'codesync-extension.zip'
