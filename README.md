@@ -38,6 +38,7 @@ Are you looking to modify the extension, run local tests, or configure CI/CD rel
 
 ---
 
-## 📄 License
+## 📄 License & Privacy
 
-Licensed under the [Apache License, Version 2.0](LICENSE).
+Licensed under the [Apache License, Version 2.0](LICENSE).  
+Read our [Privacy Policy](PRIVACY.md).
