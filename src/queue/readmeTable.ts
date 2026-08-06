@@ -91,7 +91,7 @@ export function updateReadmeTable(
   const problemUrl = problem.url || `https://leetcode.com/problems/${problem.slug}/`;
   const langDisplayName = getLanguageDisplayName(submission.language);
 
-  let content = existingContent || `# CodeSync Solutions\n\nMy coding solutions synced automatically using CodeSync.\n`;
+  let content = existingContent || `# LeetCode Solutions\n`;
   if (!content.endsWith('\n')) {
     content += '\n';
   }
@@ -248,15 +248,19 @@ export function updateReadmeTable(
   sections.sort((a, b) => a.title.localeCompare(b.title));
 
   // Rebuild the final content
-  let finalContent = prefixLines.join('\n').trimEnd();
+  const cleanPrefixLines = prefixLines.filter(line => !line.includes('Synced automatically using') && line.trim() !== '---');
+
+  let finalContent = cleanPrefixLines.join('\n').trimEnd();
   if (finalContent) {
     finalContent += '\n\n';
   }
 
   for (const s of sections) {
+    const cleanLines = s.lines.filter(line => !line.includes('Synced automatically using') && line.trim() !== '---');
     finalContent += s.heading + '\n';
-    finalContent += s.lines.join('\n').trimEnd() + '\n\n';
+    finalContent += cleanLines.join('\n').trimEnd() + '\n\n';
   }
 
-  return finalContent.trimEnd() + '\n';
+  finalContent = finalContent.trimEnd() + '\n\n---\n*Synced automatically using [CodeSync](https://github.com/pardeep1916P/codeSync).*\n';
+  return finalContent;
 }
