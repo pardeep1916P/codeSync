@@ -159,7 +159,7 @@ export class CommitQueue {
       // Ignore error and initialize new README
     }
 
-    const updatedReadme = updateReadmeTable(existingReadme, problem, submission);
+    const updatedReadme = updateReadmeTable(existingReadme, problem, submission, repoFullName);
 
     // Fetch existing stats.json
     let existingStatsContent: string | null = null;

@@ -105,4 +105,9 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     const result = updateReadmeTable(initialContent, mockProblem, cppSubmission);
     expect(result).toContain('| 1 | [Two Sum](https://leetcode.com/problems/two-sum/) | LeetCode #1 | [C++](./two-sum/two-sum.cpp), [Java](./two-sum/two-sum.java) |');
   });
+
+  it('should use repository name as main heading when repoName is provided', () => {
+    const result = updateReadmeTable(null, mockProblem, mockSubmission, 'pardeep1916P/DSA');
+    expect(result).toContain('# DSA');
+  });
 });
