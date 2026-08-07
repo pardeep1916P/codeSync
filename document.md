@@ -15,7 +15,7 @@ If you want to run or test the extension locally, follow these steps:
    ```
 2. **Install Dependencies & Build**:
    ```bash
-   npm install
+   npm install --legacy-peer-deps
    npm run build
    ```
 3. **Load the Extension into Chrome**:
