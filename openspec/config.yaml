@@ -1,0 +1,34 @@
+schema: spec-driven
+
+# Project context
+context: |
+  Project: CodeSync Browser Extension
+  Tech Stack: TypeScript, React (Vite), Zustand, Vitest, ESLint, Chrome Extension Manifest V3 (MV3).
+  Architecture: Main-World Interceptor -> Content Script Bridge -> Service Worker Background Queue -> GitHub Git Trees REST API.
+  Conventions:
+    - Conventional commits (feat, fix, docs, perf, ci, test, refactor).
+    - Modular architecture with clean contracts and non-blocking background queue tasks.
+    - Zero console noise in production and 100% test coverage for parsers & queue logic.
+    - Spec-driven changes managed via OpenSpec proposals and specifications.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

@@ -52,20 +52,35 @@ We use **GitHub Actions** to automate our code verification and release packagin
 
 ---
 
+## 📋 OpenSpec Spec-Driven Development Framework
+
+CodeSync uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) (`@fission-ai/openspec`) for Spec-Driven Development (SDD).
+
+* **Specification Folder**: `openspec/`
+* **Configuration**: `openspec/config.yaml`
+* **Slash Commands**:
+  - `/opsx-propose "feature idea"` — Propose a new spec-driven change.
+  - `/openspec-apply` — Execute tasks according to an approved spec proposal.
+  - `/openspec-archive` — Archive completed changes into main specifications.
+
+---
+
 ## 📂 Project Structure
 
 ```
+├── .agent/ / .agents/      # OpenSpec AI Agent skills & custom slash commands
 ├── .github/
-│   └── workflows/         # GitHub Actions CI/CD workflows
-├── public/                # Extension icons and Manifest configuration
+│   └── workflows/          # GitHub Actions CI/CD workflows
+├── openspec/               # OpenSpec framework specs and change proposals
+├── public/                 # Extension icons and Manifest configuration
 ├── src/
-│   ├── background/        # Service worker managing queue alarms and events
-│   ├── content/           # Main-world fetch/XHR network interceptor & isolated bridge
-│   ├── github/            # Git Trees API client and OAuth integrations
-│   ├── queue/             # Submission commit queue logic and README updates
-│   ├── store/             # Global state managed via Zustand (storage caching)
-│   ├── styles/            # Core CSS theme tokens and global styles
-│   └── popup/             # Main Dashboard React user interface
-├── README.md              # Repository documentation
-└── vite.config.ts         # Vite build configuration
+│   ├── background/         # Service worker managing queue alarms and events
+│   ├── content/            # Main-world fetch/XHR network interceptor & isolated bridge
+│   ├── github/             # Git Trees API client and OAuth integrations
+│   ├── queue/              # Submission commit queue logic and README updates
+│   ├── store/              # Global state managed via Zustand (storage caching)
+│   ├── styles/             # Core CSS theme tokens and global styles
+│   └── popup/              # Main Dashboard React user interface
+├── README.md               # Repository documentation
+└── vite.config.ts          # Vite build configuration
 ```
