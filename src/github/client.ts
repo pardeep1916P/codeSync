@@ -35,8 +35,26 @@ export class GitHubClient {
 
   async getUser(): Promise<GitHubUser> {
     if (this.cachedUser) return this.cachedUser;
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      try {
+        const stored = await chrome.storage.local.get('codesync_cached_user');
+        if (stored.codesync_cached_user) {
+          this.cachedUser = stored.codesync_cached_user as GitHubUser;
+          return this.cachedUser;
+        }
+      } catch {
+        // Ignore storage error
+      }
+    }
     const user = await this.request<GitHubUser>('/user');
     this.cachedUser = user;
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      try {
+        await chrome.storage.local.set({ codesync_cached_user: user });
+      } catch {
+        // Ignore storage error
+      }
+    }
     return user;
   }
 
@@ -115,9 +133,17 @@ export class GitHubClient {
       }
     }
 
-    // 3. Create the blobs for the files to commit
+    // 3. Create tree items for files (inline content < 100 KB for fast single-payload tree creation)
     const treeItems = await Promise.all(
       payload.files.map(async (file) => {
+        if (file.content.length < 100 * 1024) {
+          return {
+            path: file.path,
+            mode: '100644', // normal file
+            type: 'blob',
+            content: file.content,
+          };
+        }
         const blobResponse = await this.request<{ sha: string }>(
           `/repos/${repoFullName}/git/blobs`,
           {

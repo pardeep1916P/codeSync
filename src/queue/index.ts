@@ -134,43 +134,19 @@ export class CommitQueue {
     const codePath = `${problemFolder}/${problem.slug}.${fileExtension}`;
     const readmePath = `${problemFolder}/README.md`;
 
-    // Fetch existing individual README.md if it exists
-    let existingProblemReadme: string | null = null;
-    try {
-      const readmeFile = await client.getFileContent(repoFullName, readmePath);
-      if (readmeFile) {
-        existingProblemReadme = readmeFile.content;
-      }
-    } catch (e) {
-      // Ignore if it doesn't exist yet
-    }
+    // Parallelize reading existing files (3x faster fetch)
+    const [problemReadmeResult, rootReadmeResult, statsResult] = await Promise.allSettled([
+      client.getFileContent(repoFullName, readmePath),
+      client.getFileContent(repoFullName, 'README.md'),
+      client.getFileContent(repoFullName, 'stats.json'),
+    ]);
 
-    // Generate content
+    const existingProblemReadme = problemReadmeResult.status === 'fulfilled' && problemReadmeResult.value ? problemReadmeResult.value.content : null;
+    const existingReadme = rootReadmeResult.status === 'fulfilled' && rootReadmeResult.value ? rootReadmeResult.value.content : null;
+    const existingStatsContent = statsResult.status === 'fulfilled' && statsResult.value ? statsResult.value.content : null;
+
     const readmeContent = ReadmeGenerator.generate(problem, submission, existingProblemReadme);
-
-    // Fetch existing root README.md
-    let existingReadme: string | null = null;
-    try {
-      const readmeFile = await client.getFileContent(repoFullName, 'README.md');
-      if (readmeFile) {
-        existingReadme = readmeFile.content;
-      }
-    } catch (e) {
-      // Ignore error and initialize new README
-    }
-
     const updatedReadme = updateReadmeTable(existingReadme, problem, submission, repoFullName);
-
-    // Fetch existing stats.json
-    let existingStatsContent: string | null = null;
-    try {
-      const statsFile = await client.getFileContent(repoFullName, 'stats.json');
-      if (statsFile) {
-        existingStatsContent = statsFile.content;
-      }
-    } catch (e) {
-      // Ignore error
-    }
 
     let stats: { shas: Record<string, Record<string, string>>; solved: number } = {
       shas: {},
