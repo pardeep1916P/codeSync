@@ -22,7 +22,7 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 ## 🚀 Easy Setup Guide
 
 ### Step 1: Install the Extension
-1. Install CodeSync directly from the [Chrome Web Store](https://chromewebstore.google.com/) *(coming soon)*.
+1. Install CodeSync directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd).
 
 ### Step 2: Connect your GitHub Account
 1. Click the **CodeSync** icon in your browser extension toolbar.
