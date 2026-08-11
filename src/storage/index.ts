@@ -56,5 +56,38 @@ export const storage = {
         resolve();
       });
     });
+  },
+
+  async getUpdateInfo(): Promise<{ version: string } | null> {
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      const local = localStorage.getItem('codesync_update_info');
+      return local ? JSON.parse(local) : null;
+    }
+
+    return new Promise((resolve) => {
+      chrome.storage.local.get('updateInfo', (result) => {
+        resolve(result.updateInfo || null);
+      });
+    });
+  },
+
+  async setUpdateInfo(info: { version: string } | null): Promise<void> {
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      if (info) {
+        localStorage.setItem('codesync_update_info', JSON.stringify(info));
+      } else {
+        localStorage.removeItem('codesync_update_info');
+      }
+      return;
+    }
+
+    return new Promise((resolve) => {
+      if (info) {
+        chrome.storage.local.set({ updateInfo: info }, () => resolve());
+      } else {
+        chrome.storage.local.remove('updateInfo', () => resolve());
+      }
+    });
   }
 };
+
