@@ -43,11 +43,14 @@ We use **GitHub Actions** to automate our code verification and release packagin
   - Agent instruction skills (`.skills/**`)
   - Project specification logs (`context/**`)
   - Repository documentation (`README.md`, `LICENSE`)
-- **Automated GitHub Releases**: On every push to `main`, the workflow automatically compiles the production extension, creates/updates the `v1.0.0` Release on GitHub, and attaches `codesync-extension.zip` directly to the release page.
-- **Repository Secrets**: To inject your OAuth credentials during automated builds, add them as secrets in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
+- **Automated GitHub Releases & Chrome Web Store Deployment**: On every push to `main` or tag push (`v*`), the workflow automatically compiles the production extension, packages `codesync-extension.zip` and `dist.zip`, publishes to the Chrome Web Store via `chrome-webstore-upload-cli`, and creates/updates the dynamic GitHub Release (`v<version>`).
+- **Repository Secrets**: Configure the following secrets in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
   - `VITE_GITHUB_CLIENT_ID`: Your GitHub OAuth App Client ID.
   - `VITE_GITHUB_CLIENT_SECRET`: Your GitHub OAuth App Client Secret.
   - `CHROME_EXTENSION_ID`: Your Chrome Web Store Extension ID (`abdemcedoopepnjfjdbgomcandofbljd`).
+  - `CHROME_CLIENT_ID`: Google Cloud OAuth Client ID for Chrome Web Store API.
+  - `CHROME_CLIENT_SECRET`: Google Cloud OAuth Client Secret for Chrome Web Store API.
+  - `CHROME_REFRESH_TOKEN`: Google Cloud OAuth Refresh Token for Chrome Web Store API.
 - **Local Development Environment**: For local testing, copy `.env.example` to `.env` and configure your local credentials. The `.env` file is excluded from Git tracking in `.gitignore` to keep credentials secure.
 
 ---

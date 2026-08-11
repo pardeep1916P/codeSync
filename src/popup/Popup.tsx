@@ -660,7 +660,7 @@ export const Popup: React.FC = () => {
 
       {/* Footer */}
       <footer className="text-[9px] text-center font-bold mt-4 border-t pt-3 tracking-wider uppercase opacity-40" style={{ borderColor: activeTheme.border }}>
-        codesync v1.0.0
+        codesync v1.1.1
       </footer>
 
       {/* Toast Notification */}
