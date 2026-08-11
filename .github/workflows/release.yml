@@ -9,10 +9,11 @@ on:
     paths-ignore:
       - '.skills/**'
       - 'context/**'
+      - 'docs/**'
       - 'README.md'
       - 'document.md'
       - 'LICENSE'
-      - 'public/showcase.png'
+      - 'STORE_LISTING.md'
   release:
     types: [published]
   workflow_dispatch:
