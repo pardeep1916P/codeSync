@@ -13,6 +13,8 @@ interface AppState extends UserSettings {
   repositories: GitHubRepo[];
   error: string | null;
   solvedCount: number;
+  updateInfo: { version: string } | null;
+  isCheckingUpdate: boolean;
 
   // Actions
   initialize: () => Promise<void>;
@@ -24,6 +26,8 @@ interface AppState extends UserSettings {
   removeItemFromQueue: (id: string) => Promise<void>;
   clearQueue: (id?: string) => Promise<void>;
   refreshGithubData: (silent?: boolean) => Promise<void>;
+  checkForUpdates: () => Promise<{ status: string; version?: string }>;
+  applyUpdate: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -38,10 +42,13 @@ export const useStore = create<AppState>((set, get) => ({
   repositories: [],
   error: null,
   solvedCount: 0,
+  updateInfo: null,
+  isCheckingUpdate: false,
 
   initialize: async () => {
     try {
       const settings = await storage.getSettings();
+      const updateInfo = await storage.getUpdateInfo();
 
       // Phase 1: Load cached user/repos from storage instantly (no spinner)
       let cachedUser: GitHubUser | null = null;
@@ -62,6 +69,7 @@ export const useStore = create<AppState>((set, get) => ({
       // Immediately show UI with cached data (no loading flash)
       set({
         ...settings,
+        updateInfo,
         user: cachedUser,
         repositories: cachedRepos,
         solvedCount: cachedSolvedCount,
@@ -92,6 +100,9 @@ export const useStore = create<AppState>((set, get) => ({
             }
             if (changes.codesync_solved_count) {
               set({ solvedCount: changes.codesync_solved_count.newValue });
+            }
+            if (changes.updateInfo) {
+              set({ updateInfo: changes.updateInfo.newValue || null });
             }
           }
         });
@@ -383,4 +394,35 @@ export const useStore = create<AppState>((set, get) => ({
       if (!silent) set({ isLoading: false });
     }
   },
+
+  checkForUpdates: async () => {
+    set({ isCheckingUpdate: true });
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+        return new Promise<{ status: string; version?: string }>((resolve) => {
+          chrome.runtime.sendMessage({ action: 'CHECK_FOR_UPDATES' }, (response) => {
+            set({ isCheckingUpdate: false });
+            if (response?.status === 'update_available' && response?.version) {
+              set({ updateInfo: { version: response.version } });
+            }
+            resolve(response || { status: 'no_update' });
+          });
+        });
+      }
+      set({ isCheckingUpdate: false });
+      return { status: 'no_update' };
+    } catch {
+      set({ isCheckingUpdate: false });
+      return { status: 'no_update' };
+    }
+  },
+
+  applyUpdate: () => {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'APPLY_UPDATE' });
+    } else {
+      window.location.reload();
+    }
+  },
 }));
+

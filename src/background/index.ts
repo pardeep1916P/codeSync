@@ -6,9 +6,11 @@ const queue = new CommitQueue();
 
 // Listen for runtime extension installation
 chrome.runtime.onInstalled.addListener(async () => {
-  
   // Set up an alarm to process the queue periodically (every 5 minutes)
   chrome.alarms.create('process-queue-alarm', { periodInMinutes: 5 });
+
+  // Set up an alarm to check for extension updates periodically (every 60 minutes)
+  chrome.alarms.create('check-updates-alarm', { periodInMinutes: 60 });
 
   // Programmatically inject content script into all active LeetCode tabs
   try {
@@ -35,6 +37,13 @@ chrome.runtime.onInstalled.addListener(async () => {
   }
 });
 
+// Listen for background update downloads from Chrome Web Store
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onUpdateAvailable) {
+  chrome.runtime.onUpdateAvailable.addListener((details) => {
+    storage.setUpdateInfo({ version: details.version }).catch(() => {});
+  });
+}
+
 // Listen for alarm triggers
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'process-queue-alarm') {
@@ -43,6 +52,16 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         queue.processQueue().catch(() => {});
       }
     }).catch(() => {});
+  }
+
+  if (alarm.name === 'check-updates-alarm') {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.requestUpdateCheck) {
+      chrome.runtime.requestUpdateCheck((status, details) => {
+        if (status === 'update_available' && details?.version) {
+          storage.setUpdateInfo({ version: details.version }).catch(() => {});
+        }
+      });
+    }
   }
 });
 
@@ -65,6 +84,34 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .then(() => sendResponse({ success: true }))
       .catch((err) => sendResponse({ success: false, error: err.message }));
     
+    return true;
+  }
+
+  if (message.action === 'CHECK_FOR_UPDATES') {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.requestUpdateCheck) {
+      chrome.runtime.requestUpdateCheck((status, details) => {
+        if (status === 'update_available' && details?.version) {
+          storage.setUpdateInfo({ version: details.version }).catch(() => {});
+          sendResponse({ status: 'update_available', version: details.version });
+        } else {
+          sendResponse({ status, version: details?.version });
+        }
+      });
+    } else {
+      sendResponse({ status: 'no_update' });
+    }
+    return true;
+  }
+
+  if (message.action === 'APPLY_UPDATE') {
+    storage.setUpdateInfo(null).then(() => {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) {
+        chrome.runtime.reload();
+      }
+      sendResponse({ success: true });
+    }).catch(() => {
+      sendResponse({ success: false });
+    });
     return true;
   }
 

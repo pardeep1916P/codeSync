@@ -68,22 +68,69 @@ CodeSync uses [OpenSpec](https://github.com/Fission-AI/OpenSpec) (`@fission-ai/o
 
 ---
 
+## 🏗️ Architecture & Component Hierarchy
+
+CodeSync is organized into decoupled domain layers with a modular UI architecture:
+
+```mermaid
+flowchart TD
+    subgraph UI ["Modular Popup UI (src/popup/components)"]
+        HB[Header.tsx]
+        UB[UpdateBanner.tsx]
+        RC[RepoSelector.tsx]
+        SC[SyncControl.tsx]
+        AF[AuthForm.tsx]
+        FT[Footer.tsx]
+    end
+
+    subgraph Store ["Reactive State (src/store)"]
+        ZS[Zustand Store]
+    end
+
+    subgraph Background ["Service Worker (src/background)"]
+        SW[Background Worker]
+        UC[chrome.runtime.requestUpdateCheck]
+        UA[chrome.runtime.onUpdateAvailable]
+        RL[chrome.runtime.reload]
+    end
+
+    subgraph Domain ["Core Domain Logic"]
+        CQ[CommitQueue / src/queue]
+        GH[GitHubClient / src/github]
+        RD[ReadmeGenerator / src/readme]
+        PS[LeetCodeParser / src/parser]
+    end
+
+    HB & UB & RC & SC & AF & FT --> ZS
+    ZS --> SW
+    SW --> UC & UA & RL
+    SW --> CQ
+    CQ --> GH & RD & PS
+```
+
+---
+
 ## 📂 Project Structure
 
 ```
-├── .agent/ / .agents/      # OpenSpec AI Agent skills & custom slash commands
 ├── .github/
-│   └── workflows/          # GitHub Actions CI/CD workflows
-├── openspec/               # OpenSpec framework specs and change proposals
-├── public/                 # Extension icons and Manifest configuration
+│   └── workflows/          # GitHub Actions CI/CD workflows (Build, Test, Deploy)
+├── docs/                   # Project documentation & promotional media assets
+├── public/                 # Manifest configuration and production icons
 ├── src/
-│   ├── background/         # Service worker managing queue alarms and events
-│   ├── content/            # Main-world fetch/XHR network interceptor & isolated bridge
+│   ├── background/         # Service worker managing update alarms, queues, and messaging
+│   ├── components/         # Common reusable UI components (Button, etc.)
+│   ├── content/            # LeetCode DOM bridge and network interceptor
 │   ├── github/             # Git Trees API client and OAuth integrations
-│   ├── queue/              # Submission commit queue logic and README updates
-│   ├── store/              # Global state managed via Zustand (storage caching)
-│   ├── styles/             # Core CSS theme tokens and global styles
-│   └── popup/              # Main Dashboard React user interface
-├── README.md               # Repository documentation
+│   ├── parser/             # Submission parsers (pure functions with unit tests)
+│   ├── popup/              # Main Dashboard React user interface
+│   │   └── components/     # Modular UI blocks (Header, UpdateBanner, SyncControl, etc.)
+│   ├── queue/              # Submission commit queue logic and deduplication
+│   ├── readme/             # README table and markdown index generators
+│   ├── storage/            # Typed abstractions over chrome.storage.local
+│   ├── store/              # Global state managed via Zustand
+│   ├── styles/             # Curated themes and Tailwind styles
+│   └── utils/              # Helper utilities (dynamic versioning, etc.)
+├── README.md               # Repository overview and guide
 └── vite.config.ts          # Vite build configuration
 ```
