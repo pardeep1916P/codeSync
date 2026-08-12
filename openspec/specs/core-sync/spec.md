@@ -25,3 +25,9 @@ CodeSync intercepts accepted coding problem submissions in real time, queues the
 ### Requirement: High Performance Sync
 - Initial file reads (`problem/README.md`, `README.md`, `stats.json`) MUST be fetched in parallel using `Promise.allSettled`.
 - File content < 100 KB MUST use inline `content` strings in `POST /git/trees` to minimize HTTP roundtrips.
+
+### Requirement: Background Lifecycle & Update Detection
+- The background service worker MUST listen to `chrome.runtime.onUpdateAvailable` to capture downloaded extension updates.
+- A periodic alarm (`check-updates-alarm`) running every 60 minutes MUST trigger `chrome.runtime.requestUpdateCheck()` to discover new store versions.
+- The service worker MUST handle `CHECK_FOR_UPDATES` and `APPLY_UPDATE` runtime message actions and notify storage/UI state.
+
