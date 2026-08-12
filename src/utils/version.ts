@@ -5,10 +5,11 @@ export function getExtensionVersion(): string {
   if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
     try {
       const manifest = chrome.runtime.getManifest();
-      return manifest.version || '1.1.1';
+      return manifest.version || '1.1.2';
     } catch {
-      return '1.1.1';
+      return '1.1.2';
     }
   }
-  return '1.1.1';
+  return '1.1.2';
 }
+
