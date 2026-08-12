@@ -1,7 +1,7 @@
 # CodeSync
 
 <p align="center">
-  <img src="public/showcase.png" alt="CodeSync Showcase" width="550" />
+  <img src="docs/assets/showcase.png" alt="CodeSync Showcase" width="550" />
 </p>
 
 CodeSync is a lightweight and beautiful browser extension that automatically saves your accepted LeetCode submissions and pushes them directly to your personal GitHub repository. Built with a sleek terminal-inspired design, it gives you a centralized dashboard to track your solved problems, manage pending commits, and customize themes to match your coding setup.
