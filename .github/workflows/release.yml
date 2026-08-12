@@ -6,14 +6,15 @@ on:
       - main
     tags:
       - "v*"
-    paths-ignore:
-      - '.skills/**'
-      - 'context/**'
-      - 'docs/**'
-      - 'README.md'
-      - 'document.md'
-      - 'LICENSE'
-      - 'STORE_LISTING.md'
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+      - 'tsconfig.node.json'
+      - '.github/workflows/release.yml'
   release:
     types: [published]
   workflow_dispatch:
