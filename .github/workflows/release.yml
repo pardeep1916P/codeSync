@@ -64,6 +64,7 @@ jobs:
           cp codesync-extension.zip dist.zip
 
       - name: Upload & Publish to Chrome Web Store
+        continue-on-error: true
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
           CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
@@ -72,6 +73,18 @@ jobs:
         run: |
           npx chrome-webstore-upload-cli@3.5.0 upload --source "codesync-extension.zip"
           npx chrome-webstore-upload-cli@3.5.0 publish
+
+      - name: Upload & Publish to Microsoft Edge Add-ons
+        if: env.EDGE_PRODUCT_ID != ''
+        continue-on-error: true
+        uses: wshao25/edge-addon-action@v2
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+        with:
+          product-id: ${{ secrets.EDGE_PRODUCT_ID }}
+          client-id: ${{ secrets.EDGE_CLIENT_ID }}
+          api-key: ${{ secrets.EDGE_API_KEY }}
+          zip-path: codesync-extension.zip
 
       - name: Create or Update GitHub Release
         uses: softprops/action-gh-release@v2
