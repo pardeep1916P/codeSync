@@ -75,11 +75,8 @@ jobs:
           npx chrome-webstore-upload-cli@3.5.0 publish
 
       - name: Upload & Publish to Microsoft Edge Add-ons
-        if: env.EDGE_PRODUCT_ID != ''
         continue-on-error: true
-        uses: wshao25/edge-addon-action@v2
-        env:
-          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+        uses: wdzeng/edge-addon@v2
         with:
           product-id: ${{ secrets.EDGE_PRODUCT_ID }}
           client-id: ${{ secrets.EDGE_CLIENT_ID }}
