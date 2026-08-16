@@ -2,9 +2,9 @@
 
 ## 1. Objectives Completed
 
-1. **Security & Zero-Client-Secret OAuth**:
+1. **Security & Zero-Client-Secret Universal OAuth**:
    - Eliminated `VITE_GITHUB_CLIENT_SECRET` from client builds.
-   - Deployed a dedicated serverless Cloudflare Worker proxy (`codesync-oauth`) at `https://codesync-oauth.chaitanyacharan07.workers.dev` to handle server-side token exchange.
+   - Deployed a dedicated serverless Cloudflare Worker proxy (`codesync-oauth`) at `https://codesync-oauth.chaitanyacharan07.workers.dev` supporting universal `/callback` endpoints to work across Chrome, Edge, and local dev environments simultaneously.
    - Implemented AES-GCM (256-bit) token encryption at rest in local browser storage via Web Crypto API (`crypto.subtle`).
 
 2. **Memory Leak Fix & Storage Bounding**:

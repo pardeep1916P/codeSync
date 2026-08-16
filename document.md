@@ -60,10 +60,10 @@ We use **GitHub Actions** (`.github/workflows/release.yml`) to automate code ver
 
 ## 🔒 Security Architecture
 
-### Zero-Client-Secret OAuth Architecture
-CodeSync implements a zero-client-secret pattern for OAuth:
+### Zero-Client-Secret Universal OAuth Architecture
+CodeSync implements a zero-client-secret pattern combined with a universal multi-browser callback hub:
 - **No Client Secrets in Extension**: The GitHub OAuth App Client Secret is NEVER bundled in frontend client builds.
-- **Cloudflare Edge Proxy**: A dedicated serverless worker (`codesync-oauth`) deployed on Cloudflare's global edge network safely exchanges the temporary authorization code for an access token without exposing backend credentials.
+- **Universal Multi-Browser OAuth Proxy**: A dedicated serverless worker (`codesync-oauth`) deployed on Cloudflare's global edge network safely handles OAuth callbacks (`/callback`). It acts as a static bridge between GitHub OAuth and dynamic browser extension IDs (Google Chrome, Microsoft Edge, Brave, Arc, Vivaldi, and local development builds) by forwarding tokens back to the originating browser context via state parameters.
 
 ### At-Rest Credential Encryption
 - All Personal Access Tokens and OAuth access tokens stored in `chrome.storage.local` are encrypted at rest using **AES-GCM (256-bit)** with key derivation via the **Web Crypto API (`crypto.subtle`)** in [`src/utils/crypto.ts`](file:///c:/Users/CharanChaitanyaDevan/Downloads/temp/codeSync/src/utils/crypto.ts).
