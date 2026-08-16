@@ -103,6 +103,59 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === 'START_OAUTH_FLOW') {
+    const clientId = (message.payload?.clientId as string) || 'Ov23liu5G6Wn6s2zUBnc';
+    const proxyUrl = (message.payload?.proxyUrl as string) || 'https://codesync-oauth.chaitanyacharan07.workers.dev';
+    const redirectUri = typeof chrome !== 'undefined' && chrome.identity
+      ? chrome.identity.getRedirectURL()
+      : 'https://' + chrome.runtime.id + '.chromiumapp.org/';
+
+    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=${encodeURIComponent(
+      'repo'
+    )}&redirect_uri=${encodeURIComponent(`${proxyUrl}/callback`)}&state=${encodeURIComponent(redirectUri)}&prompt=select_account`;
+
+    chrome.identity.launchWebAuthFlow(
+      {
+        url: authUrl,
+        interactive: true,
+      },
+      async (redirectUrl) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+          return;
+        }
+
+        if (!redirectUrl) {
+          sendResponse({ success: false, error: 'No redirect URL returned' });
+          return;
+        }
+
+        try {
+          const url = new URL(redirectUrl);
+          const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+          const token = url.searchParams.get('access_token') || hashParams.get('access_token');
+          const error = url.searchParams.get('error_description') || url.searchParams.get('error') || hashParams.get('error');
+
+          if (error) {
+            sendResponse({ success: false, error });
+            return;
+          }
+
+          if (token) {
+            sendResponse({ success: true, token });
+            return;
+          }
+
+          sendResponse({ success: false, error: `Invalid response URL: ${redirectUrl}` });
+        } catch (e) {
+          sendResponse({ success: false, error: (e as Error).message });
+        }
+      }
+    );
+
+    return true; // Keep async response channel open
+  }
+
   if (message.action === 'APPLY_UPDATE') {
     storage.setUpdateInfo(null).then(() => {
       if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.reload) {

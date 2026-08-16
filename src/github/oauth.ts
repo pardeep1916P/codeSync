@@ -25,67 +25,43 @@ export class GitHubOAuth {
       ? chrome.identity.getRedirectURL()
       : window.location.origin;
 
-    if (typeof chrome === 'undefined' || !chrome.identity) {
-      window.open(this.getAuthUrl(browserRedirectUri), '_blank');
-      return null;
-    }
-
-    return new Promise((resolve) => {
-      chrome.identity.launchWebAuthFlow(
-        {
-          url: this.getAuthUrl(browserRedirectUri),
-          interactive: true,
-        },
-        async (redirectUrl) => {
-          if (!redirectUrl) {
-            resolve(null);
-            return;
-          }
-
-          try {
-            const url = new URL(redirectUrl);
-            // 1. Direct access_token returned from our worker redirect
-            const token = url.searchParams.get('access_token');
-            if (token) {
-              resolve(token);
+    // In Chrome extension context, delegate to background service worker for persistent lifecycle
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          {
+            action: 'START_OAUTH_FLOW',
+            payload: {
+              clientId: this.config.clientId,
+              proxyUrl: this.config.proxyUrl,
+            },
+          },
+          (response) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
               return;
             }
 
-            // 2. Fallback: code returned from legacy direct redirect
-            const code = url.searchParams.get('code');
-            if (code) {
-              const exchanged = await this.exchangeCodeForToken(code);
-              resolve(exchanged);
+            if (response && response.error) {
+              reject(new Error(response.error));
               return;
             }
-          } catch {
-            // Ignore parse errors
+
+            if (response && response.token) {
+              resolve(response.token);
+              return;
+            }
+
+            reject(new Error('OAuth failed or returned empty response.'));
           }
-
-          resolve(null);
-        }
-      );
-    });
-  }
-
-  private async exchangeCodeForToken(code: string): Promise<string> {
-    const proxyUrl = this.config.proxyUrl || 'https://codesync-oauth.chaitanyacharan07.workers.dev';
-    const response = await fetch(proxyUrl, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        code,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OAuth proxy exchange failed: ${response.status} ${response.statusText}`);
+        );
+      });
     }
 
-    const data = await response.json();
-    return data.access_token || '';
+    // Fallback for non-extension web contexts
+    window.open(this.getAuthUrl(browserRedirectUri), '_blank');
+    return null;
   }
+
 }
+

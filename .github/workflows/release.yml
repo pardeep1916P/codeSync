@@ -75,6 +75,8 @@ jobs:
           npx chrome-webstore-upload-cli@3.5.0 publish
 
       - name: Upload & Publish to Microsoft Edge Add-ons
+        # Temporarily disabled while initial manual upload is under review in Microsoft Partner Center
+        if: false
         continue-on-error: true
         uses: wdzeng/edge-addon@v2
         with:
