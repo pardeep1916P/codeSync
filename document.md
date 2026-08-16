@@ -45,13 +45,13 @@ We use **GitHub Actions** (`.github/workflows/release.yml`) to automate code ver
   - **Microsoft Edge Add-ons Store**: Published automatically via `wdzeng/edge-addon@v2`.
   - **GitHub Releases**: Generates a tagged release (`v<version>`) attaching both `codesync-extension.zip` and `dist.zip` with automated release notes.
 - **Repository Secrets & Variables**: Configure the following in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
-  - `VITE_GITHUB_CLIENT_ID` *(Secret / Variable)*: GitHub OAuth App Client ID (`Ov23liu5G6Wn6s2zUBnc`).
-  - `VITE_OAUTH_PROXY_URL` *(Variable)*: Secure OAuth Proxy URL (`https://codesync-oauth.chaitanyacharan07.workers.dev`).
-  - `CHROME_EXTENSION_ID` *(Secret)*: Chrome Web Store Extension ID (`abdemcedoopepnjfjdbgomcandofbljd`).
+  - `VITE_GITHUB_CLIENT_ID` *(Secret / Variable)*: GitHub OAuth App Client ID.
+  - `VITE_OAUTH_PROXY_URL` *(Variable)*: Secure OAuth Proxy URL (e.g. `https://<your-worker-name>.<your-subdomain>.workers.dev`).
+  - `CHROME_EXTENSION_ID` *(Secret)*: Chrome Web Store Extension ID.
   - `CHROME_CLIENT_ID` *(Secret)*: Google Cloud OAuth Client ID for Chrome Web Store API.
   - `CHROME_CLIENT_SECRET` *(Secret)*: Google Cloud OAuth Client Secret for Chrome Web Store API.
   - `CHROME_REFRESH_TOKEN` *(Secret)*: Google Cloud OAuth Refresh Token for Chrome Web Store API.
-  - `EDGE_PRODUCT_ID` *(Secret)*: Microsoft Edge Extension Product ID (`a1676327-fda5-4bdd-80f4-9cd1a260689f`).
+  - `EDGE_PRODUCT_ID` *(Secret)*: Microsoft Edge Extension Product ID.
   - `EDGE_CLIENT_ID` *(Secret)*: Microsoft Edge Add-ons API Client ID.
   - `EDGE_API_KEY` *(Secret)*: Microsoft Edge Add-ons API Key.
 - **Local Development Environment**: For local testing, copy `.env.example` to `.env` and configure your credentials. The `.env` file is excluded from Git tracking in `.gitignore`.
