@@ -1,6 +1,6 @@
 export interface OAuthConfig {
   clientId: string;
-  clientSecret: string; // Typically handled via a proxy server to keep it secret, but supported in client config for custom apps
+  proxyUrl?: string;
   scopes: string[];
 }
 
@@ -49,8 +49,6 @@ export class GitHubOAuth {
             return;
           }
 
-          // In production, send this code to an OAuth proxy to exchange it for an access token
-          // For template placeholder, we write the client exchange call:
           const token = await this.exchangeCodeForToken(code);
           resolve(token);
         }
@@ -59,20 +57,21 @@ export class GitHubOAuth {
   }
 
   private async exchangeCodeForToken(code: string): Promise<string> {
-    // Note: Direct client-side code exchange is blocked by CORS by GitHub, so a secure backend proxy
-    // is normally used. This is a template configuration.
-    const response = await fetch('https://github.com/login/oauth/access_token', {
+    const proxyUrl = this.config.proxyUrl || 'https://codesync-oauth.chaitanyacharan07.workers.dev';
+    const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
         code,
       }),
     });
+
+    if (!response.ok) {
+      throw new Error(`OAuth proxy exchange failed: ${response.status} ${response.statusText}`);
+    }
 
     const data = await response.json();
     return data.access_token || '';

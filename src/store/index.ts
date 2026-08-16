@@ -185,7 +185,7 @@ export const useStore = create<AppState>((set, get) => ({
     try {
       const oauth = new GitHubOAuth({
         clientId: import.meta.env.VITE_GITHUB_CLIENT_ID || '',
-        clientSecret: import.meta.env.VITE_GITHUB_CLIENT_SECRET || '',
+        proxyUrl: import.meta.env.VITE_OAUTH_PROXY_URL || 'https://codesync-oauth.chaitanyacharan07.workers.dev',
         scopes: ['repo'],
       });
       const token = await oauth.authenticate();
