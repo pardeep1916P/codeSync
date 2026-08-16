@@ -8,58 +8,80 @@ export class GitHubClient {
     this.token = token;
   }
 
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
-    const response = await fetch(`https://api.github.com${path}`, {
-      cache: 'no-store',
-      ...options,
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        ...options.headers,
-      },
-    });
+  private async sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 
-    if (!response.ok) {
-      let bodyText = '';
+  private async request<T>(path: string, options: RequestInit = {}, retries = 2): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        bodyText = await response.text();
-      } catch (_) {
-        // Ignore response reading error
+        const response = await fetch(`https://api.github.com${path}`, {
+          cache: 'no-store',
+          ...options,
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2022-11-28',
+            ...options.headers,
+          },
+        });
+
+        // If rate limited or server temporarily unavailable, retry with backoff
+        if ((response.status === 429 || response.status >= 500) && attempt < retries) {
+          const retryAfter = response.headers.get('Retry-After');
+          const delayMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : (attempt + 1) * 1000;
+          await this.sleep(delayMs);
+          continue;
+        }
+
+        if (!response.ok) {
+          let bodyText = '';
+          try {
+            bodyText = await response.text();
+          } catch (_) {
+            // Ignore response reading error
+          }
+          throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}. Response: ${bodyText}`);
+        }
+
+        return (await response.json()) as T;
+      } catch (err) {
+        lastError = err as Error;
+        if (attempt < retries && !lastError.message?.includes('404') && !lastError.message?.includes('401')) {
+          await this.sleep((attempt + 1) * 1000);
+          continue;
+        }
+        throw lastError;
       }
-      throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}. Response: ${bodyText}`);
     }
 
-    return response.json() as Promise<T>;
+    throw lastError || new Error('GitHub API request failed after retries');
   }
 
   async getUser(): Promise<GitHubUser> {
     if (this.cachedUser) return this.cachedUser;
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      try {
-        const stored = await chrome.storage.local.get('codesync_cached_user');
-        if (stored.codesync_cached_user) {
-          this.cachedUser = stored.codesync_cached_user as GitHubUser;
-          return this.cachedUser;
-        }
-      } catch {
-        // Ignore storage error
-      }
-    }
     const user = await this.request<GitHubUser>('/user');
     this.cachedUser = user;
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      try {
-        await chrome.storage.local.set({ codesync_cached_user: user });
-      } catch {
-        // Ignore storage error
-      }
-    }
     return user;
   }
 
   async getRepositories(): Promise<GitHubRepo[]> {
-    return this.request<GitHubRepo[]>('/user/repos?per_page=100&sort=updated');
+    const allRepos: GitHubRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+    const maxPages = 5; // Support up to 500 repositories
+
+    while (page <= maxPages) {
+      const repos = await this.request<GitHubRepo[]>(`/user/repos?per_page=${perPage}&page=${page}&sort=updated`);
+      if (!Array.isArray(repos) || repos.length === 0) break;
+      allRepos.push(...repos);
+      if (repos.length < perPage) break;
+      page++;
+    }
+
+    return allRepos;
   }
 
   async getFileContent(repoFullName: string, path: string, branch?: string): Promise<{ content: string; sha: string } | null> {

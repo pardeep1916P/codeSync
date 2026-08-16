@@ -236,16 +236,29 @@ export class CommitQueue {
     await storage.updateSettings({ commitQueue: updatedQueue });
   }
 
-  private getFileExtension(language: string): string {
-    const lang = language.toLowerCase().trim();
+  getFileExtension(language: string): string {
+    const lang = (language || '').toLowerCase().trim();
     if (lang.includes('c++') || lang === 'cpp') return 'cpp';
+    if (lang === 'c' || lang.startsWith('c ') || lang === 'clang') return 'c';
+    if (lang.includes('csharp') || lang === 'cs' || lang === 'c#') return 'cs';
     if (lang.includes('javascript') || lang === 'js') return 'js';
     if (lang.includes('typescript') || lang === 'ts') return 'ts';
     if (lang.includes('python') || lang === 'py') return 'py';
     if (lang.includes('java')) return 'java';
+    if (lang.includes('kotlin') || lang === 'kt') return 'kt';
+    if (lang.includes('swift')) return 'swift';
     if (lang.includes('go') || lang === 'golang') return 'go';
     if (lang.includes('rust') || lang === 'rs') return 'rs';
-    if (lang.includes('csharp') || lang === 'cs' || lang === 'c#') return 'cs';
+    if (lang.includes('ruby') || lang === 'rb') return 'rb';
+    if (lang.includes('scala')) return 'scala';
+    if (lang.includes('php')) return 'php';
+    if (lang.includes('dart')) return 'dart';
+    if (lang.includes('racket') || lang === 'rkt') return 'rkt';
+    if (lang.includes('elixir') || lang === 'ex') return 'ex';
+    if (lang.includes('erlang') || lang === 'erl') return 'erl';
+    if (lang.includes('sql') || lang.includes('mysql') || lang.includes('postgresql') || lang.includes('oracle')) return 'sql';
+    if (lang === 'r') return 'r';
+    if (lang.includes('bash') || lang === 'sh') return 'sh';
     return 'txt';
   }
 

@@ -1,3 +1,6 @@
+import { getLocalStorage, setLocalStorage, removeLocalStorage } from '../utils/chrome';
+import { encryptToken, decryptToken } from '../utils/crypto';
+
 export interface UserSettings {
   githubToken: string | null;
   githubUser: string | null;
@@ -16,78 +19,45 @@ const DEFAULT_SETTINGS: UserSettings = {
 
 export const storage = {
   async getSettings(): Promise<UserSettings> {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      // Fallback for development/testing environment
-      const local = localStorage.getItem('codesync_settings');
-      return local ? { ...DEFAULT_SETTINGS, ...JSON.parse(local) } : DEFAULT_SETTINGS;
-    }
+    const data = await getLocalStorage('settings');
+    const rawSettings = data.settings as UserSettings | undefined;
+    if (!rawSettings) return DEFAULT_SETTINGS;
 
-    return new Promise((resolve) => {
-      chrome.storage.local.get('settings', (result) => {
-        resolve(result.settings ? { ...DEFAULT_SETTINGS, ...result.settings } : DEFAULT_SETTINGS);
-      });
-    });
+    const merged = { ...DEFAULT_SETTINGS, ...rawSettings };
+    if (merged.githubToken) {
+      merged.githubToken = await decryptToken(merged.githubToken);
+    }
+    return merged;
   },
 
   async updateSettings(settings: Partial<UserSettings>): Promise<UserSettings> {
     const current = await this.getSettings();
     const updated = { ...current, ...settings };
 
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      localStorage.setItem('codesync_settings', JSON.stringify(updated));
-      return updated;
+    const toStore = { ...updated };
+    if (toStore.githubToken) {
+      toStore.githubToken = await encryptToken(toStore.githubToken);
     }
 
-    return new Promise((resolve) => {
-      chrome.storage.local.set({ settings: updated }, () => {
-        resolve(updated);
-      });
-    });
+    await setLocalStorage({ settings: toStore });
+    return updated;
   },
 
   async clearSettings(): Promise<void> {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      localStorage.removeItem('codesync_settings');
-      return;
-    }
-
-    return new Promise((resolve) => {
-      chrome.storage.local.remove('settings', () => {
-        resolve();
-      });
-    });
+    await removeLocalStorage('settings');
   },
 
   async getUpdateInfo(): Promise<{ version: string } | null> {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      const local = localStorage.getItem('codesync_update_info');
-      return local ? JSON.parse(local) : null;
-    }
-
-    return new Promise((resolve) => {
-      chrome.storage.local.get('updateInfo', (result) => {
-        resolve(result.updateInfo || null);
-      });
-    });
+    const data = await getLocalStorage('updateInfo');
+    return (data.updateInfo as { version: string } | null) || null;
   },
 
   async setUpdateInfo(info: { version: string } | null): Promise<void> {
-    if (typeof chrome === 'undefined' || !chrome.storage) {
-      if (info) {
-        localStorage.setItem('codesync_update_info', JSON.stringify(info));
-      } else {
-        localStorage.removeItem('codesync_update_info');
-      }
-      return;
+    if (info) {
+      await setLocalStorage({ updateInfo: info });
+    } else {
+      await removeLocalStorage('updateInfo');
     }
-
-    return new Promise((resolve) => {
-      if (info) {
-        chrome.storage.local.set({ updateInfo: info }, () => resolve());
-      } else {
-        chrome.storage.local.remove('updateInfo', () => resolve());
-      }
-    });
   }
 };
 
