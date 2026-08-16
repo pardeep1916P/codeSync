@@ -37,21 +37,24 @@ If you want to run or test the extension locally, follow these steps:
 
 ## 🤖 CI/CD Release Pipeline
 
-We use **GitHub Actions** to automate our code verification and release packaging:
-- **Build and Test Validation**: Every push to the `main` branch triggers a workflow that installs dependencies, runs the ESLint linter, runs unit tests, and verifies that the production build compiles cleanly.
-- **Smart Path Filtering**: The workflow is configured with `paths-ignore` to prevent redundant runner triggers if the only modified files are non-code assets, such as:
-  - Agent instruction skills (`.skills/**`)
-  - Project specification logs (`context/**`)
-  - Repository documentation (`README.md`, `LICENSE`)
-- **Automated GitHub Releases & Chrome Web Store Deployment**: On every push to `main` or tag push (`v*`), the workflow automatically compiles the production extension, packages `codesync-extension.zip` and `dist.zip`, publishes to the Chrome Web Store via `chrome-webstore-upload-cli`, and creates/updates the dynamic GitHub Release (`v<version>`).
+We use **GitHub Actions** (`.github/workflows/release.yml`) to automate code verification, release packaging, and cross-browser distribution:
+- **Build and Test Validation**: Every push with source changes triggers a workflow that installs dependencies, runs ESLint, executes Vitest unit tests, and verifies that the production bundle compiles cleanly.
+- **Smart Whitelist Path Filtering**: The workflow uses explicit `paths:` triggers (`src/**`, `public/**`, `package.json`, build configs) so commits touching only documentation, OpenSpec specifications, or context logs never trigger redundant CI runners.
+- **Automated Multi-Browser Store Deployment**:
+  - **Chrome Web Store**: Published automatically via `chrome-webstore-upload-cli` (covers **Google Chrome**, **Brave**, **Arc**, and **Vivaldi**).
+  - **Microsoft Edge Add-ons Store**: Published automatically via `wdzeng/edge-addon@v2`.
+  - **GitHub Releases**: Generates a tagged release (`v<version>`) attaching both `codesync-extension.zip` and `dist.zip` with automated release notes.
 - **Repository Secrets**: Configure the following secrets in your GitHub repository (**Settings** $\rightarrow$ **Secrets and variables** $\rightarrow$ **Actions**):
-  - `VITE_GITHUB_CLIENT_ID`: Your GitHub OAuth App Client ID.
-  - `VITE_GITHUB_CLIENT_SECRET`: Your GitHub OAuth App Client Secret.
-  - `CHROME_EXTENSION_ID`: Your Chrome Web Store Extension ID (`abdemcedoopepnjfjdbgomcandofbljd`).
+  - `VITE_GITHUB_CLIENT_ID`: GitHub OAuth App Client ID.
+  - `VITE_GITHUB_CLIENT_SECRET`: GitHub OAuth App Client Secret.
+  - `CHROME_EXTENSION_ID`: Chrome Web Store Extension ID (`abdemcedoopepnjfjdbgomcandofbljd`).
   - `CHROME_CLIENT_ID`: Google Cloud OAuth Client ID for Chrome Web Store API.
   - `CHROME_CLIENT_SECRET`: Google Cloud OAuth Client Secret for Chrome Web Store API.
   - `CHROME_REFRESH_TOKEN`: Google Cloud OAuth Refresh Token for Chrome Web Store API.
-- **Local Development Environment**: For local testing, copy `.env.example` to `.env` and configure your local credentials. The `.env` file is excluded from Git tracking in `.gitignore` to keep credentials secure.
+  - `EDGE_PRODUCT_ID`: Microsoft Edge Extension Product ID (`a1676327-fda5-4bdd-80f4-9cd1a260689f`).
+  - `EDGE_CLIENT_ID`: Microsoft Edge Add-ons API Client ID.
+  - `EDGE_API_KEY`: Microsoft Edge Add-ons API Key.
+- **Local Development Environment**: For local testing, copy `.env.example` to `.env` and configure your credentials. The `.env` file is excluded from Git tracking in `.gitignore`.
 
 ---
 

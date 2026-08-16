@@ -45,5 +45,10 @@ Decomposed monolithic 749-line `Popup.tsx` into clean, reusable components:
 
 ---
 
-### 4. Automated CI/CD & Chrome Web Store Publishing
-- Configured `.github/workflows/release.yml` for automated linting, testing, building, dynamic version tagging, GitHub Release generation, and automated Chrome Web Store deployment via `chrome-webstore-upload-cli`.
+### 4. Automated Multi-Browser CI/CD & Cross-Store Publishing
+- Configured `.github/workflows/release.yml` for automated linting, testing, building, dynamic version tagging, and GitHub Release generation.
+- Integrated automated dual-store publishing:
+  - **Chrome Web Store**: Published via `chrome-webstore-upload-cli` (also covering Brave, Arc, and Vivaldi).
+  - **Microsoft Edge Add-ons Store**: Published via `wdzeng/edge-addon@v2`.
+- Integrated real-time live Shields.io store API badges in `README.md` for zero-maintenance version and build tracking.
+
