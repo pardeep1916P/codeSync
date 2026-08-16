@@ -5,9 +5,11 @@ CodeSync manages user authentication securely using GitHub OAuth or Personal Acc
 
 ## Requirements
 
-### Requirement: Authentication Methods
+### Requirement: Authentication Methods & Zero-Client-Secret OAuth
 - CodeSync MUST support GitHub OAuth authentication via `chrome.identity.launchWebAuthFlow()`.
 - CodeSync MUST support manual GitHub Personal Access Token (PAT) authentication with `repo` scope.
+- Client secrets MUST NEVER be bundled or compiled into frontend extension assets.
+- Temporary OAuth authorization codes MUST be exchanged via a dedicated secure serverless proxy (`VITE_OAUTH_PROXY_URL` / Cloudflare Worker).
 
 ### Requirement: Local Credential & Profile Caching
 - Authentication tokens MUST be encrypted with AES-GCM via the Web Crypto API before persisting to `chrome.storage.local`.
