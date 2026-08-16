@@ -49,7 +49,7 @@ jobs:
         run: npm run build
         env:
           VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
-          VITE_OAUTH_PROXY_URL: ${{ secrets.VITE_OAUTH_PROXY_URL || vars.VITE_OAUTH_PROXY_URL || 'https://codesync-oauth.chaitanyacharan07.workers.dev' }}
+          VITE_OAUTH_PROXY_URL: ${{ vars.VITE_OAUTH_PROXY_URL }}
           CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
 
       - name: Get version from manifest
