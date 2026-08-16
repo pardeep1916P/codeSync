@@ -11,28 +11,29 @@ export class GitHubOAuth {
     this.config = config;
   }
 
-  getAuthUrl(): string {
+  getAuthUrl(browserRedirectUri: string): string {
     const scopes = this.config.scopes.join(' ');
-    const redirectUri = typeof chrome !== 'undefined' && chrome.identity
-      ? chrome.identity.getRedirectURL()
-      : window.location.origin;
+    const proxyCallback = `${this.config.proxyUrl || 'https://codesync-oauth.chaitanyacharan07.workers.dev'}/callback`;
 
     return `https://github.com/login/oauth/authorize?client_id=${this.config.clientId}&scope=${encodeURIComponent(
       scopes
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}&prompt=select_account`;
+    )}&redirect_uri=${encodeURIComponent(proxyCallback)}&state=${encodeURIComponent(browserRedirectUri)}&prompt=select_account`;
   }
-  
 
   async authenticate(): Promise<string | null> {
+    const browserRedirectUri = typeof chrome !== 'undefined' && chrome.identity
+      ? chrome.identity.getRedirectURL()
+      : window.location.origin;
+
     if (typeof chrome === 'undefined' || !chrome.identity) {
-      window.open(this.getAuthUrl(), '_blank');
+      window.open(this.getAuthUrl(browserRedirectUri), '_blank');
       return null;
     }
 
     return new Promise((resolve) => {
       chrome.identity.launchWebAuthFlow(
         {
-          url: this.getAuthUrl(),
+          url: this.getAuthUrl(browserRedirectUri),
           interactive: true,
         },
         async (redirectUrl) => {
@@ -41,16 +42,27 @@ export class GitHubOAuth {
             return;
           }
 
-          const url = new URL(redirectUrl);
-          const code = url.searchParams.get('code');
-          
-          if (!code) {
-            resolve(null);
-            return;
+          try {
+            const url = new URL(redirectUrl);
+            // 1. Direct access_token returned from our worker redirect
+            const token = url.searchParams.get('access_token');
+            if (token) {
+              resolve(token);
+              return;
+            }
+
+            // 2. Fallback: code returned from legacy direct redirect
+            const code = url.searchParams.get('code');
+            if (code) {
+              const exchanged = await this.exchangeCodeForToken(code);
+              resolve(exchanged);
+              return;
+            }
+          } catch {
+            // Ignore parse errors
           }
 
-          const token = await this.exchangeCodeForToken(code);
-          resolve(token);
+          resolve(null);
         }
       );
     });
