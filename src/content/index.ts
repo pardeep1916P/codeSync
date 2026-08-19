@@ -148,7 +148,7 @@ interface SubmissionData {
   } | null;
 }
 
-async function handleAcceptedSubmission(data: SubmissionData) {
+async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent = false) {
   if (isContextInvalidated()) return;
   const subId = data.submissionId;
   if (!subId) return;
@@ -189,6 +189,26 @@ async function handleAcceptedSubmission(data: SubmissionData) {
   if (!question) {
     processedSubmissionIds.delete(subId); // Release lock on failure
     return;
+  }
+
+  // ── Bulletproof Historical Submission Guard ────────────────────────────
+  // If explicitly flagged historical OR solved > 5 minutes (300s) ago:
+  const isOlderThan5Min = (Date.now() - (timestamp || 0) * 1000) > 300_000;
+  if (isHistoricalEvent || isOlderThan5Min) {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        const settingsData = await chrome.storage.local.get('settings');
+        const syncHistoricalOnView = settingsData.settings?.syncHistoricalOnView ?? false;
+        if (!syncHistoricalOnView) {
+          // Discard: History Sync is OFF
+          processedSubmissionIds.delete(subId); // Allow it to be synced if user later enables History Sync
+          return;
+        }
+      }
+    } catch {
+      processedSubmissionIds.delete(subId);
+      return;
+    }
   }
 
   const difficultyMap: Record<string, 'Easy' | 'Medium' | 'Hard'> = {
@@ -238,8 +258,23 @@ function initContentScript() {
     }
     if (event.source !== window) return;
 
+    const isHistorical = !!event.data?.isHistorical;
+    if (isHistorical) {
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          const settingsData = await chrome.storage.local.get('settings');
+          const syncHistoricalOnView = settingsData.settings?.syncHistoricalOnView ?? false;
+          if (!syncHistoricalOnView) {
+            return; // Discard historical submission if toggle is off
+          }
+        }
+      } catch {
+        return;
+      }
+    }
+
     if (event.data?.type === 'CODESYNC_SUBMISSION_ACCEPTED') {
-      await handleAcceptedSubmission(event.data.payload);
+      await handleAcceptedSubmission(event.data.payload, isHistorical);
     }
 
     if (event.data?.type === 'CODESYNC_JUDGING_ACCEPTED') {
@@ -252,7 +287,7 @@ function initContentScript() {
           lang: '',
           timestamp: Math.floor(Date.now() / 1000),
           question: null,
-        });
+        }, false);
       }
     }
 
@@ -266,7 +301,7 @@ function initContentScript() {
           lang: event.data.payload.lang || '',
           timestamp: event.data.payload.timestamp || Math.floor(Date.now() / 1000),
           question: null,
-        });
+        }, true);
       }
     }
   };
@@ -316,7 +351,7 @@ function initContentScript() {
           lang: '',
           timestamp: Math.floor(Date.now() / 1000),
           question: null,
-        });
+        }, true); // Treat DOM scrape of static URL as potentially historical
       }
     } catch (e) {
       // Silently ignore fallback errors

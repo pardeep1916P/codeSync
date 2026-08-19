@@ -43,6 +43,12 @@ CodeSync provides an intuitive, high-performance React dashboard popup with modu
 - Selected theme preference MUST persist in `chrome.storage.local`.
 - Dropdowns and scrollable containers MUST use styled dark scrollbars matching the active theme palette.
 
+### Requirement: Radix & shadcn/ui Switches & History Sync Badge
+- Form toggles (such as *Instant Sync on Accept* and *Historical Submissions Sync*) MUST use accessible Radix UI primitives with smooth sliding thumbs (`@radix-ui/react-switch` and `@radix-ui/react-label`).
+- When `syncHistoricalOnView` is `false`, the popup UI MUST remain completely clean with zero badges representing historical sync.
+- When `syncHistoricalOnView` is `true`, a badge `[HIST_SYNC: ACTIVE]` MUST be rendered to the **left** of the `AUTO_SYNC` badge without displacing or causing layout shift to the `AUTO_SYNC` badge.
+
 ### Requirement: Pending Queue Management
 - Users MUST be able to view, delete, or manually trigger sync for queued submissions.
+
 

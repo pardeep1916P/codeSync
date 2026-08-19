@@ -1,75 +1,55 @@
-# Feature Plan: Historical Submissions Sync & Viewing Controls (Next Version)
+# Architecture & Implementation: Historical Submissions Sync & Multi-Platform Guarding
 
-## 1. Problem Statement & User Experience Challenge
-Currently, when a user navigates to the **"Submissions"** tab on LeetCode and clicks on a past accepted submission (e.g. from July or August 2026), LeetCode issues a `submissionDetails` GraphQL query to fetch the code.
+## 1. Overview & Problem Solved
+When a user navigates to the **"Submissions"** tab on LeetCode (or future platforms) and inspects an older accepted solution, the platform queries its API for the submission details.
 
-The current network interceptor captures every `submissionDetails` with `statusCode: 10` (Accepted). As a result, simply *inspecting* an old submission triggers an automatic sync commit to GitHub.
+Previously, inspecting an old submission triggered an automatic commit. CodeSync now isolates **Active Judging** from **Historical Submission Browsing** via a configurable toggle and timestamp freshness guard.
 
 ---
 
-## 2. Target Vision: Converting This Behavior into a Robust Feature
-
-Instead of accidental syncing on view, we will separate **Active Judging** from **Historical Submission Management** and provide user-controlled syncing.
+## 2. Universal Flow Architecture
 
 ```mermaid
 flowchart TD
-    A["User on LeetCode"] --> B{"Event Type"}
+    A["User on Platform (LeetCode, GFG, HackerRank)"] --> B{"Event Type"}
     
-    B -->|"Active 'Submit' Button Click"| C["Judging Interceptor (Active Stream)"]
-    C --> D["Auto-Sync to GitHub (Immediate / Queue)"]
+    B -->|"Active 'Submit' Judging (< 5 min)"| C["Fresh Submission Judged"]
+    C --> D{"Auto-Sync ON?"}
+    D -->|"Yes"| E["Instantly Committed to GitHub"]
+    D -->|"No"| F["Added to Pending Queue -> Click TRIGGER_SYNC"]
     
-    B -->|"Viewing Old Submissions Tab"| E["Historical Submission Viewer"]
-    E --> F{"Is Submission on GitHub?"}
-    F -->|"Already Synced"| G["Show 'Synced ✓' Badge"]
-    F -->|"Not Synced"| H["Show '⚡ Sync this Version' Button"]
-    H -->|"User Clicks Button"| I["Commit with Original Historical Timestamp"]
+    B -->|"Viewing Old Submission (> 5 min)"| G{"Historical Sync Toggle"}
+    G -->|"OFF (Default)"| H["Dropped Cleanly (No Queue, No Commit)"]
+    G -->|"ON"| I["Queued with Original Historical Timestamp"]
+    I --> D
 ```
 
 ---
 
-## 3. Proposed Feature Specifications
+## 3. Implemented Components
 
-### A. Separation of Active Submissions vs. Browsing
-1. **Active Judging Detection**:
-   - Only trigger automatic sync when a fresh submission is actively judged:
-     - LeetCode `/check/` polling endpoint.
-     - `submissionProgress` GraphQL response with `state: "SUCCESS"`.
-     - Correlation with user clicking the LeetCode **"Submit"** button.
-2. **Browsing Filter**:
-   - `submissionDetails` queries triggered purely by clicking rows in the Submissions history list will **NOT** trigger automatic background sync by default.
+### A. Settings Toggles (`src/options/Options.tsx`)
+Built with accessible **Radix UI & shadcn/ui** components (`Switch` and `Label`):
+- **Instant Sync on Accept** (`syncOnAccept`): Real-time sync for active problem solves.
+- **Historical Submissions Sync** (`syncHistoricalOnView`, **OFF by default**): Controlled syncing for past submissions.
 
----
+### B. Popup Badge Behavior (`src/popup/components/SyncControl.tsx`)
+- **When OFF (Default)**: Popup UI remains completely untouched with zero extra badges.
+- **When ON**: `[HIST_SYNC: ACTIVE]` badge renders to the **left** of `AUTO_SYNC` with zero layout displacement.
 
-### B. In-Page "Sync this Submission" Button (LeetCode Submissions Tab)
-When a user opens any historical submission modal/view on LeetCode:
-- CodeSync injects a sleek terminal-themed button:
-  - If already on GitHub: Shows a discreet **`[Synced to GitHub ✓]`** badge.
-  - If not on GitHub: Shows an interactive **`[⚡ Sync to GitHub]`** button.
-- When clicked, CodeSync syncs that specific solution to GitHub preserving its **original historical timestamp** (e.g. `Jul 10, 2026`).
+### C. Multi-Platform Timestamp Freshness Guard (`src/content/index.ts`)
+- Submissions solved $> 300\text{s}$ ago (5 minutes) or flagged as historical are checked against `syncHistoricalOnView`.
+- If `false`, the event is immediately discarded without touching the pending queue or GitHub API.
 
 ---
 
-### C. Settings Configuration: Historical Submissions Mode
-In the CodeSync Options / Settings page, add a new setting:
-- **`Sync Mode for Viewed Submissions`**:
-  - `Manual (Recommended)`: Only active submissions auto-sync; past submissions show the manual "Sync to GitHub" button.
-  - `Automatic`: Any past submission opened in the Submissions tab is automatically queued and synced.
-  - `Disabled`: Never sync from the Submissions tab.
+## 4. Multi-Platform Extension Readiness
 
----
+| Platform | Past Submissions Trigger | Historical Handling |
+| :--- | :--- | :--- |
+| **LeetCode** | `submissionDetails` GraphQL / Submissions Tab | Active judge ID tracking + 5-minute timestamp freshness guard |
+| **GeeksforGeeks** (Phase 5) | GFG Submissions Tab (`/api/problems/...`) | Extracts past submission date and passes through `syncHistoricalOnView` |
+| **HackerRank** (Phase 5) | Leaderboard / History REST API | Normalizes payload with original timestamp |
+| **Codeforces** (Phase 6) | `user.status` Public API | Supports single-view sync and 1-click all-time sync |
+| **CodeChef** (Phase 6) | `/viewsolution/<id>` Modal | Extracts historical date and language code |
 
-### D. Bulk Historical Sync Tool (Options Page)
-In the Options page, add a **"Sync Problem History"** utility:
-- Fetches all historical accepted submissions for a given problem or recent problem list.
-- Automatically selects the fastest / most recent solution for each language (C++, Java, Python, etc.) and performs a single bulk atomic commit.
-
----
-
-## 4. Implementation Phasing
-
-1. **Phase 1 (Interceptor Guarding)**:
-   - Filter `interceptor.ts` so `CODESYNC_SUBMISSION_ACCEPTED` only fires for active submissions.
-2. **Phase 2 (In-Page UI Integration)**:
-   - Inject the `Sync to GitHub` button and status badge into LeetCode's submission detail modal.
-3. **Phase 3 (Settings & Bulk Sync)**:
-   - Add historical sync toggle in `Options.tsx` and bulk history sync tool.

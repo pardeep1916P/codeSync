@@ -1,15 +1,14 @@
 # Product Backlog
 
 High Priority
-- Queue engine
-- OAuth
-- Retry system
+- Historical Submissions Sync toggle & viewing controls (Next Release)
+- Platform Expansion: GeeksforGeeks & HackerRank
 
 Medium
-- Themes
-- Commit templates
-- Statistics
+- Commit message customizable templates
+- Enhanced Solved Statistics Dashboard & Streak graphs
+- Custom folder structuring rules
 
 Low
-- AI summaries
-- Multi-language README templates
+- AI problem summaries & complexity analysis
+- Multi-language README styling themes

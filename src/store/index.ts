@@ -40,6 +40,7 @@ interface AppState extends UserSettings {
   logout: () => Promise<void>;
   selectRepo: (repoFullName: string) => Promise<void>;
   setSyncOnAccept: (value: boolean) => Promise<void>;
+  setSyncHistoricalOnView: (value: boolean) => Promise<void>;
   removeItemFromQueue: (id: string) => Promise<void>;
   clearQueue: (id?: string) => Promise<void>;
   refreshGithubData: (silent?: boolean) => Promise<void>;
@@ -52,6 +53,7 @@ export const useStore = create<AppState>((set, get) => ({
   githubUser: null,
   selectedRepo: null,
   syncOnAccept: true,
+  syncHistoricalOnView: false,
   commitQueue: [],
   isLoading: true,
   isSyncing: false,
@@ -247,6 +249,11 @@ export const useStore = create<AppState>((set, get) => ({
   setSyncOnAccept: async (value: boolean) => {
     await storage.updateSettings({ syncOnAccept: value });
     set({ syncOnAccept: value });
+  },
+
+  setSyncHistoricalOnView: async (value: boolean) => {
+    await storage.updateSettings({ syncHistoricalOnView: value });
+    set({ syncHistoricalOnView: value });
   },
 
   removeItemFromQueue: async (id: string) => {

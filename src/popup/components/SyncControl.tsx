@@ -11,6 +11,7 @@ interface PendingSubmission {
 interface SyncControlProps {
   hasToken: boolean;
   syncOnAccept: boolean;
+  syncHistoricalOnView?: boolean;
   selectedRepo: string | null;
   isSyncing: boolean;
   commitQueue: string[];
@@ -26,6 +27,7 @@ interface SyncControlProps {
 export const SyncControl: React.FC<SyncControlProps> = ({
   hasToken,
   syncOnAccept,
+  syncHistoricalOnView = false,
   selectedRepo,
   isSyncing,
   commitQueue,
@@ -45,22 +47,41 @@ export const SyncControl: React.FC<SyncControlProps> = ({
       <div className="flex items-center justify-between">
         <span className="text-[9px] font-bold tracking-wider uppercase opacity-55">SYNC_STATUS</span>
         {hasToken && (
-          <span 
-            className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 animate-fade-in"
-            style={{
-              backgroundColor: isSyncing 
-                ? 'rgba(59, 130, 246, 0.12)'
-                : (syncOnAccept ? 'rgba(34, 197, 94, 0.12)' : 'rgba(249, 115, 22, 0.12)'),
-              color: isSyncing
-                ? '#60a5fa'
-                : (syncOnAccept ? activeTheme.accent : '#f97316'),
-              border: `1px solid ${isSyncing ? 'rgba(59, 130, 246, 0.25)' : (syncOnAccept ? 'rgba(34, 197, 94, 0.25)' : 'rgba(249, 115, 22, 0.25)')}`
-            }}
-            title={isSyncing ? "Syncing pending queue to GitHub" : (syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue")}
-          >
-            <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: isSyncing ? '#60a5fa' : (syncOnAccept ? activeTheme.accent : '#f97316') }}></span>
-            {isSyncing ? 'COMMITTING...' : (syncOnAccept ? 'AUTO_SYNC: ACTIVE' : 'AUTO_SYNC: INACTIVE')}
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* History Sync Badge (Only visible when active) */}
+            {syncHistoricalOnView && (
+              <span 
+                className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 animate-fade-in"
+                style={{
+                  backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                  color: '#c084fc',
+                  border: '1px solid rgba(168, 85, 247, 0.25)'
+                }}
+                title="History Sync is enabled: viewing past submissions will sync them"
+              >
+                <span className="h-1 w-1 rounded-full" style={{ backgroundColor: '#c084fc' }}></span>
+                HIST_SYNC: ACTIVE
+              </span>
+            )}
+
+            {/* Auto Sync Badge */}
+            <span 
+              className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 animate-fade-in"
+              style={{
+                backgroundColor: isSyncing 
+                  ? 'rgba(59, 130, 246, 0.12)'
+                  : (syncOnAccept ? 'rgba(34, 197, 94, 0.12)' : 'rgba(249, 115, 22, 0.12)'),
+                color: isSyncing
+                  ? '#60a5fa'
+                  : (syncOnAccept ? activeTheme.accent : '#f97316'),
+                border: `1px solid ${isSyncing ? 'rgba(59, 130, 246, 0.25)' : (syncOnAccept ? 'rgba(34, 197, 94, 0.25)' : 'rgba(249, 115, 22, 0.25)')}`
+              }}
+              title={isSyncing ? "Syncing pending queue to GitHub" : (syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue")}
+            >
+              <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: isSyncing ? '#60a5fa' : (syncOnAccept ? activeTheme.accent : '#f97316') }}></span>
+              {isSyncing ? 'COMMITTING...' : (syncOnAccept ? 'AUTO_SYNC: ACTIVE' : 'AUTO_SYNC: INACTIVE')}
+            </span>
+          </div>
         )}
       </div>
 

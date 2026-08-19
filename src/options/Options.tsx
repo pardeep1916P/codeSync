@@ -3,6 +3,8 @@ import { useStore } from '../store';
 import { Button } from '../components/Button';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { THEMES, getSavedThemeId } from '../styles/themes';
+import { Switch } from '../components/ui/switch';
+import { Label } from '../components/ui/label';
 
 const PrivateIcon: React.FC = () => (
   <svg className="w-4 h-4 text-rose-500 fill-none stroke-current shrink-0 animate-pulse" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -136,10 +138,6 @@ export const Options: React.FC = () => {
     setTimeout(() => {
       setToast(null);
     }, 4000);
-  };
-
-  const handleToggleSync = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    await store.setSyncOnAccept(e.target.checked);
   };
 
   const handleConnectPAT = async (e: React.MouseEvent) => {
@@ -298,106 +296,126 @@ export const Options: React.FC = () => {
           </div>
         </section>
 
-        {/* Sync Trigger Settings */}
+        {/* Target Repository Selection */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">2. Sync Rules</h2>
-          <div className="border rounded-2xl p-5 flex flex-col gap-5" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
-            <div className="flex items-center justify-between">
-              <div className="flex-1 pr-6">
-                <span className="text-xs font-bold" style={{ color: activeTheme.textHighlight }}>Instant sync on Acceptance</span>
-                <span className="text-[11px] block leading-relaxed mt-0.5 opacity-60">
-                  Automatically synchronize your solution as soon as you submit an accepted answer on LeetCode.
-                </span>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">2. Target Repository</h2>
+          <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
+            {store.githubToken ? (
+              <div className="flex flex-col gap-2">
+                <div className="relative w-full max-w-md repo-dropdown-container">
+                  <button
+                    onClick={() => setIsRepoDropdownOpen(!isRepoDropdownOpen)}
+                    className="w-full flex items-center justify-between px-3.5 py-2.5 border rounded-xl text-xs font-semibold hover:bg-white/5 transition-all duration-150"
+                    style={{ 
+                      backgroundColor: activeTheme.inputBg, 
+                      borderColor: activeTheme.border,
+                      color: activeTheme.textHighlight
+                    }}
+                  >
+                    <span className="flex items-center gap-2">
+                      {selectedRepoObj ? (
+                        <>
+                          {selectedRepoObj.private ? <PrivateIcon /> : <PublicIcon />}
+                          <span className="truncate">{selectedRepoObj.full_name}</span>
+                        </>
+                      ) : (
+                        <span style={{ color: activeTheme.text }} className="opacity-50">Select repository...</span>
+                      )}
+                    </span>
+                    <svg className="fill-current h-4 w-4 transition-transform duration-150" style={{ color: activeTheme.text, transform: isRepoDropdownOpen ? 'rotate(180deg)' : 'none' }} viewBox="0 0 20 20">
+                      <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                    </svg>
+                  </button>
+                  
+                  {isRepoDropdownOpen && (
+                    <div className="absolute left-0 right-0 mt-1.5 max-h-60 overflow-y-auto border rounded-xl shadow-2xl z-50 py-1 repo-dropdown-scrollbar"
+                         style={{ 
+                           backgroundColor: activeTheme.bg, 
+                           borderColor: activeTheme.border 
+                         }}>
+                      {store.repositories.map((repo) => (
+                        <button
+                          key={repo.id}
+                          onClick={() => {
+                            store.selectRepo(repo.full_name);
+                            setIsRepoDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-semibold transition-all duration-150 hover:bg-white/5"
+                          style={{ 
+                            color: store.selectedRepo === repo.full_name ? activeTheme.textHighlight : activeTheme.text,
+                            backgroundColor: store.selectedRepo === repo.full_name ? 'rgba(255,255,255,0.03)' : 'transparent'
+                          }}
+                        >
+                          {repo.private ? <PrivateIcon /> : <PublicIcon />}
+                          <span className="truncate">{repo.full_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] leading-relaxed mt-1 opacity-60">
+                  We will save files under directory structures named after the problem slug inside this repo.
+                </p>
               </div>
-              <label htmlFor="syncOnAccept" className="relative inline-flex items-center cursor-pointer mt-1">
-                <input
-                  id="syncOnAccept"
-                  type="checkbox"
-                  checked={store.syncOnAccept}
-                  onChange={handleToggleSync}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 rounded-full peer transition-all peer-focus:outline-none peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-zinc-400 after:rounded-full after:h-4 after:w-4 after:transition-all"
-                     style={{
-                       backgroundColor: store.syncOnAccept ? activeTheme.accent : activeTheme.inputBg
-                     }}
-                ></div>
-              </label>
+            ) : (
+              <div className="text-xs font-bold italic p-3 rounded-xl border" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder, color: activeTheme.dangerText }}>
+                Authenticate your GitHub account to choose a target repository.
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Synchronization Preferences */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">3. Synchronization Rules</h2>
+          <div className="border rounded-2xl p-5 flex flex-col gap-5" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
+            {/* Instant Sync on Accept Toggle */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 pr-4">
+                <Label htmlFor="auto-sync" className="cursor-pointer text-xs font-bold tracking-wider uppercase" style={{ color: activeTheme.textHighlight }}>
+                  Instant Sync on Accept
+                </Label>
+                <p className="text-[11px] font-semibold leading-relaxed opacity-60">
+                  Automatically synchronize your solution as soon as you submit an accepted answer on LeetCode.
+                </p>
+              </div>
+              <Switch
+                id="auto-sync"
+                checked={store.syncOnAccept}
+                onCheckedChange={(checked) => {
+                  store.setSyncOnAccept(checked);
+                  showToast(checked ? 'Instant Sync enabled' : 'Instant Sync disabled', 'success');
+                }}
+              />
             </div>
 
-            <div className="border-t pt-5" style={{ borderColor: activeTheme.border }}>
-              <label className="text-xs font-bold block mb-2 tracking-wider uppercase opacity-55">
-                Target Repository
-              </label>
-              {store.githubToken ? (
-                <div className="flex flex-col gap-2">
-                  <div className="relative w-full max-w-md repo-dropdown-container">
-                    <button
-                      onClick={() => setIsRepoDropdownOpen(!isRepoDropdownOpen)}
-                      className="w-full flex items-center justify-between px-3.5 py-2.5 border rounded-xl text-xs font-semibold hover:bg-white/5 transition-all duration-150"
-                      style={{ 
-                        backgroundColor: activeTheme.inputBg, 
-                        borderColor: activeTheme.border,
-                        color: activeTheme.textHighlight
-                      }}
-                    >
-                      <span className="flex items-center gap-2">
-                        {selectedRepoObj ? (
-                          <>
-                            {selectedRepoObj.private ? <PrivateIcon /> : <PublicIcon />}
-                            <span className="truncate">{selectedRepoObj.full_name}</span>
-                          </>
-                        ) : (
-                          <span style={{ color: activeTheme.text }} className="opacity-50">Select repository...</span>
-                        )}
-                      </span>
-                      <svg className="fill-current h-4 w-4 transition-transform duration-150" style={{ color: activeTheme.text, transform: isRepoDropdownOpen ? 'rotate(180deg)' : 'none' }} viewBox="0 0 20 20">
-                        <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                      </svg>
-                    </button>
-                    
-                    {isRepoDropdownOpen && (
-                      <div className="absolute left-0 right-0 mt-1.5 max-h-60 overflow-y-auto border rounded-xl shadow-2xl z-50 py-1 repo-dropdown-scrollbar"
-                           style={{ 
-                             backgroundColor: activeTheme.bg, 
-                             borderColor: activeTheme.border 
-                           }}>
-                        {store.repositories.map((repo) => (
-                          <button
-                            key={repo.id}
-                            onClick={() => {
-                              store.selectRepo(repo.full_name);
-                              setIsRepoDropdownOpen(false);
-                            }}
-                            className="w-full flex items-center gap-2 px-3.5 py-2.5 text-left text-xs font-semibold transition-all duration-150 hover:bg-white/5"
-                            style={{ 
-                              color: store.selectedRepo === repo.full_name ? activeTheme.textHighlight : activeTheme.text,
-                              backgroundColor: store.selectedRepo === repo.full_name ? 'rgba(255,255,255,0.03)' : 'transparent'
-                            }}
-                          >
-                            {repo.private ? <PrivateIcon /> : <PublicIcon />}
-                            <span className="truncate">{repo.full_name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-[10px] leading-relaxed mt-1 opacity-60">
-                    We will save files under directory structures named after the problem slug inside this repo.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-xs font-bold italic p-3 rounded-xl border" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder, color: activeTheme.dangerText }}>
-                  Authenticate your GitHub account to choose a target repository.
-                </div>
-              )}
+            <div className="border-t" style={{ borderColor: activeTheme.border }}></div>
+
+            {/* History Sync Toggle */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 pr-4">
+                <Label htmlFor="history-sync" className="cursor-pointer text-xs font-bold tracking-wider uppercase" style={{ color: activeTheme.textHighlight }}>
+                  Historical Submissions Sync
+                </Label>
+                <p className="text-[11px] font-semibold leading-relaxed opacity-60">
+                  Sync older accepted submissions when viewing them in the LeetCode Submissions history tab.
+                </p>
+              </div>
+              <Switch
+                id="history-sync"
+                checked={store.syncHistoricalOnView}
+                onCheckedChange={(checked) => {
+                  store.setSyncHistoricalOnView(checked);
+                  showToast(checked ? 'History Sync enabled' : 'History Sync disabled', 'success');
+                }}
+              />
             </div>
           </div>
         </section>
 
         {/* Directory Customization */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">3. Repository Structure Layout (Future)</h2>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Repository Structure Layout (Future)</h2>
           <div className="border rounded-2xl p-5 flex flex-col gap-2.5" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
             <p className="text-xs leading-relaxed opacity-60">
               Customize directory templates. Default: <code className="px-2 py-1 rounded border text-[10px] font-mono" style={{ backgroundColor: activeTheme.inputBg, borderColor: activeTheme.border, color: activeTheme.accent }}>{`{platform}/{problem_slug}/`}</code>
@@ -429,7 +447,7 @@ export const Options: React.FC = () => {
 
         {/* Reset / Backup */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Danger Zone</h2>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">5. Danger Zone</h2>
           <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder }}>
             <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: activeTheme.dangerBorder }}>
               <div className="pr-4">

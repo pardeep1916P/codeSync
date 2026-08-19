@@ -6,6 +6,7 @@ export interface UserSettings {
   githubUser: string | null;
   selectedRepo: string | null;
   syncOnAccept: boolean;
+  syncHistoricalOnView: boolean;
   commitQueue: string[]; // Submission IDs pending sync
 }
 
@@ -14,6 +15,7 @@ const DEFAULT_SETTINGS: UserSettings = {
   githubUser: null,
   selectedRepo: null,
   syncOnAccept: true,
+  syncHistoricalOnView: false,
   commitQueue: [],
 };
 

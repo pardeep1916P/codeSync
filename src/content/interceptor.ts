@@ -22,6 +22,8 @@ if (!(window as any).__codeSyncInjected) {
             const subId = match ? match[1] : null;
             const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted';
             if (subId && isAccepted) {
+              (window as any).__codeSyncRecentJudgeId = subId;
+              (window as any).__codeSyncRecentJudgeTime = Date.now();
               window.postMessage({
                 type: 'CODESYNC_JUDGING_ACCEPTED',
                 payload: {
@@ -32,17 +34,39 @@ if (!(window as any).__codeSyncInjected) {
           }
 
           if (isGraphQL && json) {
-            // Detect the submission check response
-            // LeetCode polls this query while judging; status_id 10 = Accepted
+            // Handle the check endpoint that LeetCode uses during judging
+            if (json.data && json.data.submissionProgress) {
+              const progress = json.data.submissionProgress;
+              if (progress && progress.state === 'SUCCESS' && progress.statusCode === 10) {
+                const subId = String(progress.submissionId || '');
+                if (subId) {
+                  (window as any).__codeSyncRecentJudgeId = subId;
+                  (window as any).__codeSyncRecentJudgeTime = Date.now();
+                  window.postMessage({
+                    type: 'CODESYNC_JUDGING_ACCEPTED',
+                    payload: {
+                      submissionId: subId,
+                    }
+                  }, '*');
+                }
+              }
+            }
+
+            // Detect submissionDetails
             if (json.data && json.data.submissionDetails) {
               const details = json.data.submissionDetails;
               if (details && details.statusCode !== undefined) {
-                // statusCode 10 = Accepted in LeetCode's system
                 if (details.statusCode === 10) {
+                  const subId = String(details.id || '');
+                  const recentJudgeId = (window as any).__codeSyncRecentJudgeId;
+                  const recentJudgeTime = (window as any).__codeSyncRecentJudgeTime || 0;
+                  const isActiveJudge = recentJudgeId === subId && (Date.now() - recentJudgeTime < 10000);
+
                   window.postMessage({
                     type: 'CODESYNC_SUBMISSION_ACCEPTED',
+                    isHistorical: !isActiveJudge,
                     payload: {
-                      submissionId: details.id || '',
+                      submissionId: subId,
                       code: details.code || '',
                       lang: details.lang ? details.lang.name : '',
                       runtime: details.runtime || '',
@@ -55,34 +79,22 @@ if (!(window as any).__codeSyncInjected) {
               }
             }
 
-            // Also handle the submission list polling approach
+            // Handle submission list view
             if (json.data && json.data.submissionList) {
               const submissions = json.data.submissionList.submissions || [];
               for (const sub of submissions) {
                 if (sub.statusDisplay === 'Accepted') {
                   window.postMessage({
                     type: 'CODESYNC_SUBMISSION_LIST_ACCEPTED',
+                    isHistorical: true,
                     payload: {
-                      submissionId: sub.id,
+                      submissionId: String(sub.id),
                       lang: sub.lang || '',
                       timestamp: sub.timestamp || Math.floor(Date.now() / 1000),
                     }
                   }, '*');
-                  break; // Only the latest
+                  break;
                 }
-              }
-            }
-
-            // Handle the check endpoint that LeetCode uses during judging
-            if (json.data && json.data.submissionProgress) {
-              const progress = json.data.submissionProgress;
-              if (progress && progress.state === 'SUCCESS' && progress.statusCode === 10) {
-                window.postMessage({
-                  type: 'CODESYNC_JUDGING_ACCEPTED',
-                  payload: {
-                    submissionId: progress.submissionId || '',
-                  }
-                }, '*');
               }
             }
           }

@@ -41,3 +41,10 @@ CodeSync intercepts accepted coding problem submissions in real time, queues the
 - A periodic alarm (`check-updates-alarm`) running every 60 minutes MUST trigger `chrome.runtime.requestUpdateCheck()` to discover new store versions.
 - The service worker MUST handle `CHECK_FOR_UPDATES` and `APPLY_UPDATE` runtime message actions and notify storage/UI state.
 
+### Requirement: Historical Submissions Sync & Multi-Platform Guarding
+- CodeSync MUST provide a user-configurable toggle `syncHistoricalOnView` (default `false`) in storage settings.
+- Active judging events (`/check/`, `submissionProgress`) MUST always be processed in real time regardless of the historical setting.
+- Past submissions viewed via the platform's history tab or direct historical URL visits (timestamp > 5 minutes ago) MUST be discarded immediately when `syncHistoricalOnView === false`.
+- When `syncHistoricalOnView === true`, historical submissions MUST be queued/synced using their original accepted timestamp (`timestamp * 1000`) without altering or overwriting newer solutions in identical languages.
+
+

@@ -309,6 +309,7 @@ export const Popup: React.FC = () => {
             <SyncControl
               hasToken={!!store.githubToken}
               syncOnAccept={store.syncOnAccept}
+              syncHistoricalOnView={store.syncHistoricalOnView}
               selectedRepo={store.selectedRepo}
               isSyncing={store.isSyncing}
               commitQueue={store.commitQueue}
