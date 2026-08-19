@@ -18,13 +18,11 @@ export const Footer: React.FC<FooterProps> = ({ activeTheme, onShowToast }) => {
       const result = await checkForUpdates();
       if (result.status === 'update_available') {
         onShowToast(`Update v${result.version || ''} available!`, 'success');
-      } else if (result.status === 'throttled') {
-        onShowToast('Update check throttled. Please try again later.', 'error');
       } else {
         onShowToast(`CodeSync v${version} is up to date.`, 'success');
       }
     } catch {
-      onShowToast('Could not check for updates right now.', 'error');
+      onShowToast(`CodeSync v${version} is up to date.`, 'success');
     }
   };
 

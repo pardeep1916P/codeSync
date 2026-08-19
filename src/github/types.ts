@@ -21,4 +21,20 @@ export interface GitCommitPayload {
   }[];
   branch?: string;
   authorDate?: string;
+  baseCommitSha?: string;
+  baseTreeSha?: string;
+}
+
+export interface CommitResult {
+  commitSha: string;
+  treeSha: string;
+  branch: string;
+}
+
+export interface SyncContext {
+  branch: string;
+  latestCommitSha: string;
+  baseTreeSha: string;
+  rootReadmeContent: string | null;
+  statsContent: string | null;
 }

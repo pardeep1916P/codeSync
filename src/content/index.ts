@@ -280,6 +280,9 @@ function initContentScript() {
       clearInterval(intervalId);
       return;
     }
+    if (typeof document !== 'undefined' && document.hidden) {
+      return;
+    }
     try {
       const successSelectors = [
         '[data-e2e-locator="submission-result"]',

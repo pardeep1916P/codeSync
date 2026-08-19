@@ -107,6 +107,22 @@ export const RepoSelector: React.FC<RepoSelectorProps> = ({
               ))}
             </div>
           )}
+
+          {!selectedRepo && (
+            <div 
+              className="text-[10px] p-2.5 rounded-xl border flex items-center gap-2 mt-1 animate-fade-in"
+              style={{ 
+                backgroundColor: 'rgba(59, 130, 246, 0.08)', 
+                borderColor: 'rgba(59, 130, 246, 0.25)', 
+                color: '#60a5fa' 
+              }}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Choose a repository above to sync your accepted solutions automatically.</span>
+            </div>
+          )}
         </div>
       )}
     </div>

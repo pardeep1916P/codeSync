@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store';
 import { Button } from '../components/Button';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { THEMES, getSavedThemeId } from '../styles/themes';
 
 const PrivateIcon: React.FC = () => (
@@ -25,6 +26,30 @@ export const Options: React.FC = () => {
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
   const [tokenInput, setTokenInput] = useState('');
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const requestConfirm = (title: string, message: string, onConfirm: () => void | Promise<void>) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: async () => {
+        await onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   useEffect(() => {
     initialize();
@@ -121,16 +146,36 @@ export const Options: React.FC = () => {
     e.preventDefault();
     if (!tokenInput.trim()) return;
     await store.login(tokenInput.trim());
-    setTokenInput('');
-    showToast('Connected with PAT successfully!', 'success');
+    const currentError = useStore.getState().error;
+    if (currentError) {
+      showToast(currentError, 'error');
+    } else {
+      setTokenInput('');
+      showToast('Connected with PAT successfully!', 'success');
+    }
   };
 
-  const handleClearQueue = async () => {
-    if (confirm('Are you sure you want to clear the pending sync queue?')) {
-      await store.logout(); // Simple reset
-      showToast('Cleared settings successfully.', 'success');
-      store.initialize();
-    }
+  const handleClearQueue = () => {
+    requestConfirm(
+      'CLEAR PENDING QUEUE',
+      'Are you sure you want to clear all pending submissions from the sync queue?',
+      async () => {
+        await store.clearQueue();
+        showToast('Cleared pending sync queue.', 'success');
+      }
+    );
+  };
+
+  const handleResetSettings = () => {
+    requestConfirm(
+      'RESET EXTENSION SETTINGS',
+      'Are you sure you want to disconnect your GitHub account and reset all extension settings?',
+      async () => {
+        await store.logout();
+        showToast('All settings reset successfully.', 'success');
+        store.initialize();
+      }
+    );
   };
 
   const activeTheme = THEMES[themeId] || THEMES.matrix;
@@ -385,22 +430,43 @@ export const Options: React.FC = () => {
         {/* Reset / Backup */}
         <section className="flex flex-col gap-3">
           <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Danger Zone</h2>
-          <div className="border rounded-2xl p-5 flex items-center justify-between" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder }}>
-            <div className="pr-4">
-              <p className="text-xs font-bold uppercase tracking-wider" style={{ color: activeTheme.dangerText }}>Reset extension settings</p>
-              <p className="text-[11px] mt-1 font-semibold leading-relaxed opacity-60">This action clears your credentials and empties the sync queue.</p>
+          <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder }}>
+            <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: activeTheme.dangerBorder }}>
+              <div className="pr-4">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: activeTheme.dangerText }}>Clear Pending Queue</p>
+                <p className="text-[11px] mt-0.5 font-semibold leading-relaxed opacity-60">Flushes all queued submissions without unlinking your GitHub account.</p>
+              </div>
+              <Button 
+                variant="secondary" 
+                className="rounded-xl px-4 py-2 text-xs font-bold tracking-wider uppercase border shrink-0" 
+                onClick={handleClearQueue}
+                style={{ 
+                  backgroundColor: activeTheme.inputBg,
+                  borderColor: activeTheme.border,
+                  color: activeTheme.textHighlight
+                }}
+              >
+                Clear Queue ({store.commitQueue.length})
+              </Button>
             </div>
-            <Button 
-              variant="danger" 
-              className="rounded-xl px-4 py-2.5 text-xs font-bold tracking-wider uppercase" 
-              onClick={handleClearQueue}
-              style={{ 
-                backgroundColor: activeTheme.dangerText, 
-                color: activeTheme.bg 
-              }}
-            >
-              Reset Settings
-            </Button>
+
+            <div className="flex items-center justify-between">
+              <div className="pr-4">
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: activeTheme.dangerText }}>Reset Extension Settings</p>
+                <p className="text-[11px] mt-0.5 font-semibold leading-relaxed opacity-60">Clears your stored GitHub token, chosen repository, and resets preferences.</p>
+              </div>
+              <Button 
+                variant="danger" 
+                className="rounded-xl px-4 py-2 text-xs font-bold tracking-wider uppercase shrink-0" 
+                onClick={handleResetSettings}
+                style={{ 
+                  backgroundColor: activeTheme.dangerText, 
+                  color: activeTheme.bg 
+                }}
+              >
+                Reset All
+              </Button>
+            </div>
           </div>
         </section>
       </main>
@@ -409,27 +475,39 @@ export const Options: React.FC = () => {
         Need help? Check our documentation on <a href="https://github.com/pardeep1916P/codeSync" target="_blank" rel="noreferrer" className="underline transition-colors" style={{ color: activeTheme.accent }}>GitHub</a>.
       </footer>
 
-      {/* Floating Toast Notification */}
+      {/* Toast Notification (Perfect Bottom Centering) */}
       {toast && (
-        <div 
-          className="fixed top-6 right-6 p-4 rounded-xl text-xs font-bold shadow-2xl border flex items-center justify-between transition-all duration-300 transform translate-y-0 z-50 min-w-[280px]"
-          style={{ 
-            backgroundColor: toast.type === 'success' ? activeTheme.bg : activeTheme.dangerBg, 
-            borderColor: toast.type === 'success' ? activeTheme.border : activeTheme.dangerBorder,
-            color: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText
-          }}
-        >
-          <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText }}></span>
-            {toast.message}
-          </span>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:bg-white/10 rounded-lg transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <div className="fixed bottom-8 left-0 right-0 flex justify-center items-center pointer-events-none z-50 px-4">
+          <div 
+            className="pointer-events-auto p-3.5 px-5 rounded-2xl text-xs font-bold shadow-2xl border flex items-center justify-between gap-4 transition-all duration-300 min-w-[300px] max-w-md animate-fade-in"
+            style={{ 
+              backgroundColor: toast.type === 'success' ? (activeTheme.bg === '#000000' ? '#09090b' : activeTheme.bg) : activeTheme.dangerBg, 
+              borderColor: toast.type === 'success' ? activeTheme.border : activeTheme.dangerBorder,
+              color: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText
+            }}
+          >
+            <span className="flex items-center gap-2.5">
+              <span className="h-2 w-2 rounded-full animate-pulse shrink-0" style={{ backgroundColor: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText }}></span>
+              <span>{toast.message}</span>
+            </span>
+            <button onClick={() => setToast(null)} className="p-1 hover:bg-white/10 rounded-lg transition-colors shrink-0">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Custom Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        activeTheme={activeTheme}
+      />
     </div>
   );
 };

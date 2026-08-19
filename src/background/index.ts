@@ -4,8 +4,26 @@ import { storage } from '../storage';
 
 const queue = new CommitQueue();
 
+// Ensure sync state lock is cleanly cleared when the service worker initializes
+if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+  chrome.storage.local.set({ codesync_is_syncing: false }).catch(() => {});
+}
+
+// Listen for browser / extension startup
+if (typeof chrome !== 'undefined' && chrome.runtime?.onStartup) {
+  chrome.runtime.onStartup.addListener(() => {
+    if (chrome.storage?.local) {
+      chrome.storage.local.set({ codesync_is_syncing: false }).catch(() => {});
+    }
+  });
+}
+
 // Listen for runtime extension installation
 chrome.runtime.onInstalled.addListener(async () => {
+  if (chrome.storage?.local) {
+    chrome.storage.local.set({ codesync_is_syncing: false }).catch(() => {});
+  }
+
   // Set up an alarm to process the queue periodically (every 5 minutes)
   chrome.alarms.create('process-queue-alarm', { periodInMinutes: 5 });
 

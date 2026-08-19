@@ -1,22 +1,10 @@
 import { Problem, Submission } from '../parser/types';
-
-export function getFileExtension(language: string): string {
-  const lang = language.toLowerCase().trim();
-  if (lang.includes('c++') || lang === 'cpp') return 'cpp';
-  if (lang.includes('javascript') || lang === 'js') return 'js';
-  if (lang.includes('typescript') || lang === 'ts') return 'ts';
-  if (lang.includes('python') || lang === 'py') return 'py';
-  if (lang.includes('java')) return 'java';
-  if (lang.includes('go') || lang === 'golang') return 'go';
-  if (lang.includes('rust') || lang === 'rs') return 'rs';
-  if (lang.includes('csharp') || lang === 'cs' || lang === 'c#') return 'cs';
-  return 'txt';
-}
+import { getFileExtension, getLanguageDisplayName } from '../utils/languages';
 
 export function getPlatformName(url: string): string {
-  const lowercaseUrl = url.toLowerCase();
-  if (lowercaseUrl.includes('leetcode.com')) return 'LeetCode';
-  if (lowercaseUrl.includes('hackerrank.com')) return 'HackerRank';
+  const lowercase = (url || '').toLowerCase();
+  if (lowercase.includes('leetcode.com') || lowercase.includes('leetcode.cn')) return 'LeetCode';
+  if (lowercase.includes('hackerrank.com')) return 'HackerRank';
   return 'LeetCode'; // default fallback
 }
 
@@ -44,40 +32,6 @@ export async function computeGitSha(content: string): Promise<string> {
   const hashBuffer = await subtleCrypto.digest('SHA-1', gitBlobBytes);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b: number) => b.toString(16).padStart(2, '0')).join('');
-}
-
-const DISPLAY_LANGUAGES: Record<string, string> = {
-  cpp: 'C++',
-  'c++': 'C++',
-  java: 'Java',
-  python: 'Python',
-  python3: 'Python',
-  py: 'Python',
-  javascript: 'JavaScript',
-  js: 'JavaScript',
-  typescript: 'TypeScript',
-  ts: 'TypeScript',
-  golang: 'Go',
-  go: 'Go',
-  rust: 'Rust',
-  rs: 'Rust',
-  c: 'C',
-  csharp: 'C#',
-  'c#': 'C#',
-  ruby: 'Ruby',
-  rb: 'Ruby',
-  swift: 'Swift',
-  kotlin: 'Kotlin',
-  kt: 'Kotlin',
-  scala: 'Scala',
-  php: 'PHP',
-  sql: 'SQL',
-  mysql: 'MySQL'
-};
-
-function getLanguageDisplayName(lang: string): string {
-  const clean = lang.toLowerCase().trim();
-  return DISPLAY_LANGUAGES[clean] || lang;
 }
 
 export function updateReadmeTable(

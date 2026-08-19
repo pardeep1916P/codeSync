@@ -3,6 +3,8 @@ import { GitHubClient } from '../github/client';
 import { ReadmeGenerator } from '../readme';
 import { storage } from '../storage';
 import { updateReadmeTable, computeGitSha } from './readmeTable';
+import { getFileExtension } from '../utils/languages';
+
 export class CommitQueue {
   private isProcessing = false;
   private enqueuePromise: Promise<void> = Promise.resolve();
@@ -71,7 +73,8 @@ export class CommitQueue {
   }
 
   /**
-   * Processes all pending submissions in the queue.
+   * Processes all pending submissions in the queue with ultra-fast batching.
+   * Single problem or 10+ queued problems sync in a single atomic Git Tree commit.
    */
   async processQueue(): Promise<void> {
     if (this.isProcessing) return;
@@ -84,131 +87,132 @@ export class CommitQueue {
     try {
       const settings = await storage.getSettings();
       if (!settings.githubToken || !settings.selectedRepo) {
-        this.isProcessing = false;
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          await chrome.storage.local.set({ codesync_is_syncing: false });
-        }
         return;
       }
 
       const client = new GitHubClient(settings.githubToken);
+      const repoFullName = settings.selectedRepo;
       const pendingIds = [...settings.commitQueue];
+      if (pendingIds.length === 0) return;
+
+      // 1. Fetch entire repository sync context in ONE batched request (via GraphQL or parallel REST)
+      const context = await client.fetchSyncContext(repoFullName);
+
+      let workingReadme = context.rootReadmeContent;
+      let workingStats: { shas: Record<string, Record<string, string>>; solved: number } = {
+        shas: {},
+        solved: 0,
+      };
+
+      if (context.statsContent) {
+        try {
+          workingStats = JSON.parse(context.statsContent);
+          if (!workingStats.shas) workingStats.shas = {};
+        } catch {
+          workingStats = { shas: {}, solved: 0 };
+        }
+      }
+
+      const filesToCommit: { path: string; content: string }[] = [];
+      const processedIds: string[] = [];
+      const problemTitles: string[] = [];
 
       for (const submissionId of pendingIds) {
         const submission = await this.getSubmissionData(submissionId);
         if (!submission) {
-          // Clean up orphan ID
           await this.removeIdFromQueue(submissionId);
           continue;
         }
 
-        try {
-          await this.uploadSubmission(client, settings.selectedRepo, submission);
-          
-          // Remove from queue on success
-          await this.removeIdFromQueue(submissionId);
-          await this.clearSubmissionData(submissionId);
-          this.notifySyncResult(submission.problem.title, true);
-        } catch (error) {
-          this.notifySyncResult(submission.problem.title, false, (error as Error).message);
-          // Stop queue processing and keep it in the queue for retries
-          break;
-        }
+        const problem = submission.problem;
+        const fileExtension = this.getFileExtension(submission.language);
+        const problemFolder = `${problem.slug}`;
+        const codePath = `${problemFolder}/${problem.slug}.${fileExtension}`;
+        const readmePath = `${problemFolder}/README.md`;
+
+        // Generate problem README and update table in memory
+        const readmeContent = ReadmeGenerator.generate(problem, submission, null);
+        workingReadme = updateReadmeTable(workingReadme, problem, submission, repoFullName);
+
+        // Compute Git SHAs
+        const [codeSha, problemReadmeSha] = await Promise.all([
+          computeGitSha(submission.code),
+          computeGitSha(readmeContent),
+        ]);
+
+        workingStats.shas[problem.slug] = {
+          ...(workingStats.shas[problem.slug] || {}),
+          [`${problem.slug}.${fileExtension}`]: codeSha,
+          "README.md": problemReadmeSha,
+        };
+        delete workingStats.shas[problem.slug]["difficulty"];
+
+        filesToCommit.push(
+          { path: codePath, content: submission.code },
+          { path: readmePath, content: readmeContent }
+        );
+
+        processedIds.push(submissionId);
+        problemTitles.push(problem.title);
       }
+
+      if (filesToCommit.length === 0) return;
+
+      // Finalize Root README and stats.json
+      const finalReadme = workingReadme || '# LeetCode Solutions\n';
+      const rootReadmeSha = await computeGitSha(finalReadme);
+      workingStats.shas["README.md"] = { "": rootReadmeSha };
+      workingStats.solved = Object.keys(workingStats.shas).filter(k => k !== 'README.md' && k !== 'stats.json').length;
+
+      workingStats.shas["stats.json"] = { "": "" };
+      let statsStr = JSON.stringify(workingStats, null, 2);
+      const statsSha = await computeGitSha(statsStr);
+      workingStats.shas["stats.json"] = { "": statsSha };
+      statsStr = JSON.stringify(workingStats, null, 2);
+
+      filesToCommit.push(
+        { path: 'README.md', content: finalReadme },
+        { path: 'stats.json', content: statsStr }
+      );
+
+      // Create commit message
+      const commitMessage = problemTitles.length === 1
+        ? `feat(leetcode): add solution for ${problemTitles[0]}`
+        : `feat(leetcode): sync ${problemTitles.length} solutions (${problemTitles.slice(0, 3).join(', ')}${problemTitles.length > 3 ? '...' : ''})`;
+
+      // 2. Perform Single Atomic Multi-File Commit (< 1 second)
+      await client.createCommit(repoFullName, {
+        message: commitMessage,
+        files: filesToCommit,
+        branch: context.branch,
+        baseCommitSha: context.latestCommitSha || undefined,
+        baseTreeSha: context.baseTreeSha || undefined,
+      });
+
+      // 3. Update local cache
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({ codesync_solved_count: workingStats.solved });
+      }
+
+      // 4. Clean up all processed submissions in one batch
+      for (const id of processedIds) {
+        await this.clearSubmissionData(id);
+      }
+      const remainingQueue = (await storage.getSettings()).commitQueue.filter(id => !processedIds.includes(id));
+      await storage.updateSettings({ commitQueue: remainingQueue });
+
+      this.notifySyncResult(
+        problemTitles.length === 1 ? problemTitles[0] : `${problemTitles.length} problems`,
+        true
+      );
+    } catch (error) {
+      this.notifySyncResult('Queue', false, (error as Error).message);
     } finally {
       this.isProcessing = false;
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         await chrome.storage.local.set({ codesync_is_syncing: false });
       }
     }
-  }
-
-  private async uploadSubmission(
-    client: GitHubClient,
-    repoFullName: string,
-    submission: Submission
-  ): Promise<void> {
-    const problem = submission.problem;
-    const fileExtension = this.getFileExtension(submission.language);
-    const problemFolder = `${problem.slug}`;
-    const codePath = `${problemFolder}/${problem.slug}.${fileExtension}`;
-    const readmePath = `${problemFolder}/README.md`;
-
-    // Parallelize reading existing files (3x faster fetch)
-    const [problemReadmeResult, rootReadmeResult, statsResult] = await Promise.allSettled([
-      client.getFileContent(repoFullName, readmePath),
-      client.getFileContent(repoFullName, 'README.md'),
-      client.getFileContent(repoFullName, 'stats.json'),
-    ]);
-
-    const existingProblemReadme = problemReadmeResult.status === 'fulfilled' && problemReadmeResult.value ? problemReadmeResult.value.content : null;
-    const existingReadme = rootReadmeResult.status === 'fulfilled' && rootReadmeResult.value ? rootReadmeResult.value.content : null;
-    const existingStatsContent = statsResult.status === 'fulfilled' && statsResult.value ? statsResult.value.content : null;
-
-    const readmeContent = ReadmeGenerator.generate(problem, submission, existingProblemReadme);
-    const updatedReadme = updateReadmeTable(existingReadme, problem, submission, repoFullName);
-
-    let stats: { shas: Record<string, Record<string, string>>; solved: number } = {
-      shas: {},
-      solved: 0
-    };
-
-    if (existingStatsContent) {
-      try {
-        stats = JSON.parse(existingStatsContent);
-        if (!stats.shas) stats.shas = {};
-      } catch (e) {
-        // Reset stats silently on parse error
-      }
-    }
-
-    // Compute SHAs of files to commit
-    const codeSha = await computeGitSha(submission.code);
-    const problemReadmeSha = await computeGitSha(readmeContent);
-    const rootReadmeSha = await computeGitSha(updatedReadme);
-
-    // Update shas mapping by merging to keep other language files for this problem
-    stats.shas[problem.slug] = {
-      ...(stats.shas[problem.slug] || {}),
-      [`${problem.slug}.${fileExtension}`]: codeSha,
-      "README.md": problemReadmeSha
-    };
-
-    // Remove "difficulty" field from this problem's shas if it exists
-    if (stats.shas[problem.slug]) {
-      delete stats.shas[problem.slug]["difficulty"];
-    }
-
-    stats.shas["README.md"] = {
-      "": rootReadmeSha
-    };
-
-    // Calculate solved count (excluding README.md and stats.json keys)
-    stats.solved = Object.keys(stats.shas).filter(k => k !== 'README.md' && k !== 'stats.json').length;
-
-    // Self-hashing for stats.json
-    stats.shas["stats.json"] = { "": "" };
-    let statsStr = JSON.stringify(stats, null, 2);
-    const statsSha = await computeGitSha(statsStr);
-    stats.shas["stats.json"] = { "": statsSha };
-    statsStr = JSON.stringify(stats, null, 2);
-
-    // Cache solved count locally so popup can read it without making a GitHub request
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      await chrome.storage.local.set({ codesync_solved_count: stats.solved });
-    }
-
-    // Atomic upload containing all files in a single Git commit
-    await client.createCommit(repoFullName, {
-      message: `feat(leetcode): add solution for ${problem.title} [${submission.language}]`,
-      files: [
-        { path: codePath, content: submission.code },
-        { path: readmePath, content: readmeContent },
-        { path: 'README.md', content: updatedReadme },
-        { path: 'stats.json', content: statsStr },
-      ],
-      authorDate: new Date(submission.timestamp).toISOString(),
-    });
   }
 
   private async getSubmissionData(id: string): Promise<Submission | null> {
@@ -237,29 +241,7 @@ export class CommitQueue {
   }
 
   getFileExtension(language: string): string {
-    const lang = (language || '').toLowerCase().trim();
-    if (lang.includes('c++') || lang === 'cpp') return 'cpp';
-    if (lang === 'c' || lang.startsWith('c ') || lang === 'clang') return 'c';
-    if (lang.includes('csharp') || lang === 'cs' || lang === 'c#') return 'cs';
-    if (lang.includes('javascript') || lang === 'js') return 'js';
-    if (lang.includes('typescript') || lang === 'ts') return 'ts';
-    if (lang.includes('python') || lang === 'py') return 'py';
-    if (lang.includes('java')) return 'java';
-    if (lang.includes('kotlin') || lang === 'kt') return 'kt';
-    if (lang.includes('swift')) return 'swift';
-    if (lang.includes('go') || lang === 'golang') return 'go';
-    if (lang.includes('rust') || lang === 'rs') return 'rs';
-    if (lang.includes('ruby') || lang === 'rb') return 'rb';
-    if (lang.includes('scala')) return 'scala';
-    if (lang.includes('php')) return 'php';
-    if (lang.includes('dart')) return 'dart';
-    if (lang.includes('racket') || lang === 'rkt') return 'rkt';
-    if (lang.includes('elixir') || lang === 'ex') return 'ex';
-    if (lang.includes('erlang') || lang === 'erl') return 'erl';
-    if (lang.includes('sql') || lang.includes('mysql') || lang.includes('postgresql') || lang.includes('oracle')) return 'sql';
-    if (lang === 'r') return 'r';
-    if (lang.includes('bash') || lang === 'sh') return 'sh';
-    return 'txt';
+    return getFileExtension(language);
   }
 
   private notifySyncResult(problemTitle: string, success: boolean, errorMessage?: string) {
@@ -274,10 +256,12 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'icon.png';
+        const iconUrl = typeof chrome.runtime?.getURL === 'function' 
+          ? chrome.runtime.getURL('icon-128.png') 
+          : 'icon-128.png';
         chrome.notifications.create(`sync_${Date.now()}`, {
           type: 'basic',
-          iconUrl: DEFAULT_ICON,
+          iconUrl,
           title: success ? 'CodeSync - Sync Success' : 'CodeSync - Sync Failed',
           message: success 
             ? `Successfully synced "${problemTitle}" to GitHub!`
@@ -302,10 +286,12 @@ export class CommitQueue {
       }
 
       if (chrome.notifications && chrome.notifications.create) {
-        const DEFAULT_ICON = 'icon.png';
+        const iconUrl = typeof chrome.runtime?.getURL === 'function' 
+          ? chrome.runtime.getURL('icon-128.png') 
+          : 'icon-128.png';
         chrome.notifications.create(`queued_${Date.now()}`, {
           type: 'basic',
-          iconUrl: DEFAULT_ICON,
+          iconUrl,
           title: 'CodeSync - Submission Queued',
           message: `"${problemTitle}" added to queue (${queueLength} pending). Sync manually or wait for auto-sync.`,
           priority: 1

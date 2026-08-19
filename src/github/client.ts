@@ -1,5 +1,21 @@
 import { GitHubUser, GitHubRepo, GitCommitPayload } from './types';
 
+export class GitHubAuthError extends Error {
+  status: number;
+  constructor(message = 'Session expired or bad credentials') {
+    super(message);
+    this.name = 'GitHubAuthError';
+    this.status = 401;
+  }
+}
+
+export function isAuthError(err: unknown): boolean {
+  if (!err) return false;
+  if (err instanceof GitHubAuthError) return true;
+  const msg = (err as Error).message || '';
+  return msg.includes('401') || msg.includes('Bad credentials') || msg.includes('bad credentials');
+}
+
 export class GitHubClient {
   private token: string;
   private cachedUser: GitHubUser | null = null;
@@ -28,6 +44,10 @@ export class GitHubClient {
           },
         });
 
+        if (response.status === 401) {
+          throw new GitHubAuthError('Session expired or bad credentials');
+        }
+
         // If rate limited or server temporarily unavailable, retry with backoff
         if ((response.status === 429 || response.status >= 500) && attempt < retries) {
           const retryAfter = response.headers.get('Retry-After');
@@ -49,7 +69,10 @@ export class GitHubClient {
         return (await response.json()) as T;
       } catch (err) {
         lastError = err as Error;
-        if (attempt < retries && !lastError.message?.includes('404') && !lastError.message?.includes('401')) {
+        if (isAuthError(lastError)) {
+          throw lastError;
+        }
+        if (attempt < retries && !lastError.message?.includes('404')) {
           await this.sleep((attempt + 1) * 1000);
           continue;
         }
@@ -103,59 +126,221 @@ export class GitHubClient {
     }
   }
 
-  /**
-   * Performs a single commit with multiple files using Git Trees API.
-   * This ensures atomic single commit uploads.
-   */
-  async createCommit(repoFullName: string, payload: GitCommitPayload): Promise<void> {
-    let branch = payload.branch;
-    if (!branch) {
+  async graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    const response = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+
+    if (response.status === 401) {
+      throw new GitHubAuthError('Session expired or bad credentials');
+    }
+
+    if (!response.ok) {
+      throw new Error(`GitHub GraphQL request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors[0]?.message || 'GraphQL Error');
+    }
+    return result.data as T;
+  }
+
+  async fetchSyncContext(repoFullName: string, preferredBranch?: string): Promise<{
+    branch: string;
+    latestCommitSha: string;
+    baseTreeSha: string;
+    rootReadmeContent: string | null;
+    statsContent: string | null;
+  }> {
+    const [owner, name] = repoFullName.split('/');
+    const branch = preferredBranch || this.defaultBranchMap.get(repoFullName) || 'main';
+
+    try {
+      const query = `
+        query($owner: String!, $name: String!, $branchRef: String!, $readmeExpr: String!, $statsExpr: String!) {
+          repository(owner: $owner, name: $name) {
+            defaultBranchRef {
+              name
+              target {
+                ... on Commit {
+                  oid
+                  tree {
+                    oid
+                  }
+                }
+              }
+            }
+            ref(qualifiedName: $branchRef) {
+              target {
+                ... on Commit {
+                  oid
+                  tree {
+                    oid
+                  }
+                }
+              }
+            }
+            readme: object(expression: $readmeExpr) {
+              ... on Blob { text }
+            }
+            stats: object(expression: $statsExpr) {
+              ... on Blob { text }
+            }
+          }
+        }
+      `;
+
+      const data = await this.graphql<{
+        repository: {
+          defaultBranchRef?: {
+            name: string;
+            target?: { oid: string; tree?: { oid: string } };
+          } | null;
+          ref?: {
+            target?: { oid: string; tree?: { oid: string } };
+          } | null;
+          readme?: { text?: string } | null;
+          stats?: { text?: string } | null;
+        } | null;
+      }>(query, {
+        owner,
+        name,
+        branchRef: `refs/heads/${branch}`,
+        readmeExpr: `${branch}:README.md`,
+        statsExpr: `${branch}:stats.json`,
+      });
+
+      if (data?.repository) {
+        const repo = data.repository;
+        const targetRef = repo.ref || repo.defaultBranchRef;
+        const resolvedBranch = (repo.ref ? branch : repo.defaultBranchRef?.name) || branch;
+        this.defaultBranchMap.set(repoFullName, resolvedBranch);
+
+        if (targetRef?.target?.oid && targetRef.target.tree?.oid) {
+          return {
+            branch: resolvedBranch,
+            latestCommitSha: targetRef.target.oid,
+            baseTreeSha: targetRef.target.tree.oid,
+            rootReadmeContent: repo.readme?.text || null,
+            statsContent: repo.stats?.text || null,
+          };
+        }
+      }
+    } catch {
+      // Fallback to REST on empty repo or GraphQL failure
+    }
+
+    // REST Fallback:
+    let resolvedBranch = branch;
+    if (!preferredBranch && !this.defaultBranchMap.has(repoFullName)) {
       try {
         const repoInfo = await this.request<{ default_branch: string }>(`/repos/${repoFullName}`);
-        branch = repoInfo.default_branch;
-      } catch (e) {
-        branch = 'main';
+        resolvedBranch = repoInfo.default_branch || 'main';
+        this.defaultBranchMap.set(repoFullName, resolvedBranch);
+      } catch {
+        resolvedBranch = 'main';
       }
     }
 
-    let latestCommitSha: string = '';
-    let baseTreeSha: string = '';
+    const [readmeResult, statsResult] = await Promise.allSettled([
+      this.getFileContent(repoFullName, 'README.md', resolvedBranch),
+      this.getFileContent(repoFullName, 'stats.json', resolvedBranch),
+    ]);
 
-    // 1. Get reference to the last commit of the target branch
+    let latestCommitSha = '';
+    let baseTreeSha = '';
+
     try {
       const refResponse = await this.request<{ object: { sha: string } }>(
-        `/repos/${repoFullName}/git/ref/heads/${branch}`
+        `/repos/${repoFullName}/git/ref/heads/${resolvedBranch}`
       );
       latestCommitSha = refResponse.object.sha;
 
-      // 2. Retrieve the tree SHA of that latest commit
       const commitResponse = await this.request<{ tree: { sha: string } }>(
         `/repos/${repoFullName}/git/commits/${latestCommitSha}`
       );
       baseTreeSha = commitResponse.tree.sha;
-    } catch (error: unknown) {
-      const err = error as Error;
-      if (err.message && (err.message.includes('Git Repository is empty') || err.message.includes('409'))) {
-        // Initialize empty repository by creating a README.md file
-        const initResponse = await this.request<{ commit: { sha: string; tree: { sha: string } } }>(
-          `/repos/${repoFullName}/contents/README.md`,
-          {
-            method: 'PUT',
-            body: JSON.stringify({
-              message: 'Initial commit: initialize repository with README.md',
-              content: 'IyBDb2RlU3luYyBTb2x1dGlvbnMK', // "# CodeSync Solutions\n" in Base64
-              branch,
-            }),
-          }
-        );
-        latestCommitSha = initResponse.commit.sha;
-        baseTreeSha = initResponse.commit.tree.sha;
+    } catch {
+      // Empty repo will be initialized in createCommit
+    }
+
+    return {
+      branch: resolvedBranch,
+      latestCommitSha,
+      baseTreeSha,
+      rootReadmeContent: readmeResult.status === 'fulfilled' && readmeResult.value ? readmeResult.value.content : null,
+      statsContent: statsResult.status === 'fulfilled' && statsResult.value ? statsResult.value.content : null,
+    };
+  }
+
+  private defaultBranchMap: Map<string, string> = new Map();
+
+  /**
+   * Performs a single commit with multiple files using Git Trees API.
+   * This ensures atomic single commit uploads and supports chaining for fast multi-file batching.
+   */
+  async createCommit(repoFullName: string, payload: GitCommitPayload): Promise<{ commitSha: string; treeSha: string; branch: string }> {
+    let branch = payload.branch;
+    if (!branch) {
+      if (this.defaultBranchMap.has(repoFullName)) {
+        branch = this.defaultBranchMap.get(repoFullName)!;
       } else {
-        throw error;
+        try {
+          const repoInfo = await this.request<{ default_branch: string }>(`/repos/${repoFullName}`);
+          branch = repoInfo.default_branch || 'main';
+          this.defaultBranchMap.set(repoFullName, branch);
+        } catch {
+          branch = 'main';
+        }
       }
     }
 
-    // 3. Create tree items for files (inline content < 100 KB for fast single-payload tree creation)
+    let latestCommitSha: string = payload.baseCommitSha || '';
+    let baseTreeSha: string = payload.baseTreeSha || '';
+
+    // If base SHAs were not passed from a chained batch, fetch them from GitHub
+    if (!latestCommitSha || !baseTreeSha) {
+      try {
+        const refResponse = await this.request<{ object: { sha: string } }>(
+          `/repos/${repoFullName}/git/ref/heads/${branch}`
+        );
+        latestCommitSha = refResponse.object.sha;
+
+        const commitResponse = await this.request<{ tree: { sha: string } }>(
+          `/repos/${repoFullName}/git/commits/${latestCommitSha}`
+        );
+        baseTreeSha = commitResponse.tree.sha;
+      } catch (error: unknown) {
+        const err = error as Error;
+        if (err.message && (err.message.includes('Git Repository is empty') || err.message.includes('409') || err.message.includes('404'))) {
+          // Initialize empty repository by creating a README.md file
+          const initResponse = await this.request<{ commit: { sha: string; tree: { sha: string } } }>(
+            `/repos/${repoFullName}/contents/README.md`,
+            {
+              method: 'PUT',
+              body: JSON.stringify({
+                message: 'Initial commit: initialize repository with README.md',
+                content: 'IyBDb2RlU3luYyBTb2x1dGlvbnMK', // "# CodeSync Solutions\n" in Base64
+                branch,
+              }),
+            }
+          );
+          latestCommitSha = initResponse.commit.sha;
+          baseTreeSha = initResponse.commit.tree.sha;
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // Create tree items for files (inline content < 100 KB for fast single-payload tree creation)
     const treeItems = await Promise.all(
       payload.files.map(async (file) => {
         if (file.content.length < 100 * 1024) {
@@ -185,7 +370,7 @@ export class GitHubClient {
       })
     );
 
-    // 4. Create a new tree with the new file blobs resting on top of the base tree
+    // Create a new tree with the new file blobs resting on top of the base tree
     const treeParams = {
       base_tree: baseTreeSha,
       tree: treeItems,
@@ -199,7 +384,7 @@ export class GitHubClient {
     );
     const newTreeSha = newTreeResponse.sha;
 
-    // 5. Create the commit object referencing the new tree and base commit parent
+    // Create the commit object referencing the new tree and base commit parent
     const commitParams: Record<string, unknown> = {
       message: payload.message,
       tree: newTreeSha,
@@ -213,7 +398,7 @@ export class GitHubClient {
         const user = await this.getUser();
         name = user.name || user.login || name;
         email = user.email || `${user.login}@users.noreply.github.com`;
-      } catch (e) {
+      } catch {
         // Silent fallback
       }
       commitParams.author = {
@@ -222,6 +407,7 @@ export class GitHubClient {
         date: payload.authorDate,
       };
     }
+
     const newCommitResponse = await this.request<{ sha: string }>(
       `/repos/${repoFullName}/git/commits`,
       {
@@ -231,7 +417,7 @@ export class GitHubClient {
     );
     const newCommitSha = newCommitResponse.sha;
 
-    // 6. Update the branch reference to point to the new commit
+    // Update the branch reference to point to the new commit
     await this.request(
       `/repos/${repoFullName}/git/refs/heads/${branch}`,
       {
@@ -242,5 +428,7 @@ export class GitHubClient {
         }),
       }
     );
+
+    return { commitSha: newCommitSha, treeSha: newTreeSha, branch };
   }
 }

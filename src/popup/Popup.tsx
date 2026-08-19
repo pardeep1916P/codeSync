@@ -9,6 +9,7 @@ import { SyncControl } from './components/SyncControl';
 import { AuthForm } from './components/AuthForm';
 import { ConfirmModal } from './components/ConfirmModal';
 import { Footer } from './components/Footer';
+import { isAuthError } from '../github/client';
 
 export const Popup: React.FC = () => {
   const store = useStore();
@@ -135,27 +136,42 @@ export const Popup: React.FC = () => {
 
   useEffect(() => {
     const fetchPendingDetails = async () => {
-      const list = [];
-      for (const id of store.commitQueue) {
-        const key = `sub_${id}`;
-        let data = null;
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          const res = await new Promise<Record<string, unknown>>((resolve) => {
-            chrome.storage.local.get([key], (val) => resolve(val || {}));
-          });
-          data = res[key] as { problem: { title: string }; language: string } | null;
-        } else if (typeof localStorage !== 'undefined') {
+      if (store.commitQueue.length === 0) {
+        setPendingSubmissions([]);
+        return;
+      }
+
+      const keys = store.commitQueue.map(id => `sub_${id}`);
+      let storageData: Record<string, unknown> = {};
+
+      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+        storageData = await new Promise<Record<string, unknown>>((resolve) => {
+          chrome.storage.local.get(keys, (val) => resolve(val || {}));
+        });
+      } else if (typeof localStorage !== 'undefined') {
+        for (const key of keys) {
           const raw = localStorage.getItem(key);
-          if (raw) data = JSON.parse(raw);
-        }
-        if (data && data.problem) {
-          list.push({ id, title: data.problem.title, lang: data.language });
-        } else {
-          list.push({ id, title: `Submission #${id}`, lang: '' });
+          if (raw) {
+            try {
+              storageData[key] = JSON.parse(raw);
+            } catch {
+              // Ignore parse error
+            }
+          }
         }
       }
+
+      const list = store.commitQueue.map(id => {
+        const data = storageData[`sub_${id}`] as { problem?: { title: string }; language?: string } | undefined;
+        if (data?.problem?.title) {
+          return { id, title: data.problem.title, lang: data.language || '' };
+        }
+        return { id, title: `Submission #${id}`, lang: '' };
+      });
+
       setPendingSubmissions(list);
     };
+
     fetchPendingDetails();
   }, [store.commitQueue]);
 
@@ -173,7 +189,11 @@ export const Popup: React.FC = () => {
       await store.refreshGithubData(true);
       showToast('GitHub data refreshed successfully!', 'success');
     } catch (err) {
-      showToast(`Failed to refresh: ${(err as Error).message}`, 'error');
+      if (isAuthError(err)) {
+        showToast('Session expired. Please reconnect your account.', 'error');
+      } else {
+        showToast('Could not refresh data right now.', 'error');
+      }
     } finally {
       setIsRefreshingGithub(false);
     }
@@ -221,7 +241,7 @@ export const Popup: React.FC = () => {
 
   return (
     <div 
-      className="relative flex flex-col h-[480px] w-[360px] p-5 font-mono select-none transition-all duration-300 box-border overflow-hidden"
+      className="relative flex flex-col justify-between h-[480px] w-[360px] p-5 font-mono select-none transition-all duration-300 box-border overflow-hidden"
       style={{ backgroundColor: activeTheme.bg, color: activeTheme.text }}
     >
       {/* Terminal Title Bar */}
@@ -238,13 +258,13 @@ export const Popup: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col gap-4 overflow-visible pr-0.5">
+      <main className="flex-1 flex flex-col gap-3.5 overflow-y-auto no-scrollbar pr-0.5 my-1">
         {/* Update Notification Banner */}
         <UpdateBanner activeTheme={activeTheme} onShowToast={showToast} />
 
-        {store.error && (
+        {store.error && !isAuthError(store.error) && (
           <div 
-            className="border text-[11px] p-3.5 rounded-xl flex flex-col gap-0.5"
+            className="border text-[11px] p-3.5 rounded-xl flex flex-col gap-0.5 animate-fade-in"
             style={{ 
               backgroundColor: activeTheme.dangerBg, 
               borderColor: activeTheme.dangerBorder, 
@@ -322,18 +342,18 @@ export const Popup: React.FC = () => {
       {/* Toast Notification */}
       {toast && (
         <div 
-          className="absolute bottom-4 left-4 right-4 p-3.5 rounded-xl text-[11px] font-bold shadow-2xl border flex items-center justify-between transition-all duration-300 transform translate-y-0 z-50"
+          className="absolute bottom-12 left-4 right-4 p-3 rounded-xl text-[11px] font-bold shadow-2xl border flex items-center justify-between transition-all duration-300 transform z-50 animate-fade-in"
           style={{ 
-            backgroundColor: toast.type === 'success' ? activeTheme.bg : activeTheme.dangerBg, 
+            backgroundColor: toast.type === 'success' ? (activeTheme.bg === '#000000' ? '#09090b' : activeTheme.bg) : activeTheme.dangerBg, 
             borderColor: toast.type === 'success' ? activeTheme.border : activeTheme.dangerBorder,
             color: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText
           }}
         >
           <span className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText }}></span>
-            {toast.message}
+            <span className="h-1.5 w-1.5 rounded-full animate-pulse shrink-0" style={{ backgroundColor: toast.type === 'success' ? activeTheme.accent : activeTheme.dangerText }}></span>
+            <span className="truncate">{toast.message}</span>
           </span>
-          <button onClick={() => setToast(null)} className="p-0.5 hover:bg-white/10 rounded-lg transition-colors">
+          <button onClick={() => setToast(null)} className="p-0.5 hover:bg-white/10 rounded-lg transition-colors shrink-0">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>

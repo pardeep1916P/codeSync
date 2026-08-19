@@ -1,50 +1,5 @@
 import { Problem, Submission } from '../parser/types';
-
-const DISPLAY_LANGUAGES: Record<string, string> = {
-  cpp: 'C++',
-  'c++': 'C++',
-  java: 'Java',
-  python: 'Python',
-  python3: 'Python',
-  py: 'Python',
-  javascript: 'JavaScript',
-  js: 'JavaScript',
-  typescript: 'TypeScript',
-  ts: 'TypeScript',
-  golang: 'Go',
-  go: 'Go',
-  rust: 'Rust',
-  rs: 'Rust',
-  c: 'C',
-  csharp: 'C#',
-  'c#': 'C#',
-  ruby: 'Ruby',
-  rb: 'Ruby',
-  swift: 'Swift',
-  kotlin: 'Kotlin',
-  kt: 'Kotlin',
-  scala: 'Scala',
-  php: 'PHP',
-  sql: 'SQL',
-  mysql: 'MySQL'
-};
-
-function getLanguageDisplayName(lang: string): string {
-  const clean = lang.toLowerCase().trim();
-  return DISPLAY_LANGUAGES[clean] || lang;
-}
-
-function getMarkdownLanguage(lang: string): string {
-  const clean = lang.toLowerCase().trim();
-  if (clean === 'cpp' || clean === 'c++') return 'cpp';
-  if (clean === 'javascript' || clean === 'js') return 'javascript';
-  if (clean === 'typescript' || clean === 'ts') return 'typescript';
-  if (clean === 'python' || clean === 'py' || clean === 'python3') return 'python';
-  if (clean === 'java') return 'java';
-  if (clean === 'golang' || clean === 'go') return 'go';
-  if (clean === 'rust' || clean === 'rs') return 'rust';
-  return clean;
-}
+import { getLanguageDisplayName, getMarkdownLanguage } from '../utils/languages';
 
 export class ReadmeGenerator {
   /**

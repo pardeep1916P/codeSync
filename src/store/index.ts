@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { storage, UserSettings } from '../storage';
-import { GitHubClient } from '../github/client';
+import { GitHubClient, isAuthError, GitHubAuthError } from '../github/client';
 import { GitHubRepo, GitHubUser } from '../github/types';
 import { GitHubOAuth } from '../github/oauth';
 import { getLocalStorage, setLocalStorage, removeLocalStorage, sendRuntimeMessage, isChromeStorageAvailable } from '../utils/chrome';
@@ -126,17 +126,18 @@ export const useStore = create<AppState>((set, get) => ({
           ]);
 
           await setLocalStorage({ cached_user: user, cached_repos: repositories });
-          set({ user, repositories });
+          set({ user, repositories, error: null });
 
           if (settings.selectedRepo) {
             const solved = await fetchRepoSolvedCount(client, settings.selectedRepo);
             if (solved > 0) set({ solvedCount: solved });
           }
-        } catch {
-          // If cache exists, keep using it. Only reset token if there's no cache.
-          if (!cachedUser) {
-            await storage.updateSettings({ githubToken: null, githubUser: null });
-            set({ githubToken: null, githubUser: null, user: null, repositories: [], solvedCount: 0 });
+        } catch (err) {
+          if (isAuthError(err)) {
+            // Expired or revoked token: perform clean automatic logout
+            await get().logout();
+          } else if (!cachedUser) {
+            await get().logout();
           }
         }
       }
@@ -174,9 +175,13 @@ export const useStore = create<AppState>((set, get) => ({
         repositories,
         solvedCount,
         isLoading: false,
+        error: null,
       });
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      const errorMsg = isAuthError(e)
+        ? 'Invalid or expired GitHub token. Please verify permissions (repo scope) and try again.'
+        : (e as Error).message;
+      set({ error: errorMsg, isLoading: false });
     }
   },
 
@@ -225,8 +230,15 @@ export const useStore = create<AppState>((set, get) => ({
     let solvedCount = 0;
     const token = get().githubToken;
     if (token) {
-      const client = new GitHubClient(token);
-      solvedCount = await fetchRepoSolvedCount(client, repoFullName);
+      try {
+        const client = new GitHubClient(token);
+        solvedCount = await fetchRepoSolvedCount(client, repoFullName);
+      } catch (e) {
+        if (isAuthError(e)) {
+          await get().logout();
+          return;
+        }
+      }
     }
 
     set({ solvedCount, isLoading: false });
@@ -294,8 +306,12 @@ export const useStore = create<AppState>((set, get) => ({
         solved = await fetchRepoSolvedCount(client, settings.selectedRepo);
       }
 
-      set({ user, repositories, githubUser: user.login, solvedCount: solved });
+      set({ user, repositories, githubUser: user.login, solvedCount: solved, error: null });
     } catch (e) {
+      if (isAuthError(e)) {
+        await get().logout();
+        throw new GitHubAuthError('Session expired. Please reconnect your account.');
+      }
       set({ error: (e as Error).message });
       throw e;
     } finally {

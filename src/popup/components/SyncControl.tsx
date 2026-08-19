@@ -48,14 +48,18 @@ export const SyncControl: React.FC<SyncControlProps> = ({
           <span 
             className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0 animate-fade-in"
             style={{
-              backgroundColor: syncOnAccept ? 'rgba(34, 197, 94, 0.12)' : 'rgba(249, 115, 22, 0.12)',
-              color: syncOnAccept ? activeTheme.accent : '#f97316',
-              border: `1px solid ${syncOnAccept ? 'rgba(34, 197, 94, 0.25)' : 'rgba(249, 115, 22, 0.25)'}`
+              backgroundColor: isSyncing 
+                ? 'rgba(59, 130, 246, 0.12)'
+                : (syncOnAccept ? 'rgba(34, 197, 94, 0.12)' : 'rgba(249, 115, 22, 0.12)'),
+              color: isSyncing
+                ? '#60a5fa'
+                : (syncOnAccept ? activeTheme.accent : '#f97316'),
+              border: `1px solid ${isSyncing ? 'rgba(59, 130, 246, 0.25)' : (syncOnAccept ? 'rgba(34, 197, 94, 0.25)' : 'rgba(249, 115, 22, 0.25)')}`
             }}
-            title={syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue"}
+            title={isSyncing ? "Syncing pending queue to GitHub" : (syncOnAccept ? "Auto Sync is enabled: solved problems are synced instantly" : "Auto Sync is disabled: solved problems will queue")}
           >
-            <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: syncOnAccept ? activeTheme.accent : '#f97316' }}></span>
-            {syncOnAccept ? 'AUTO_SYNC: ACTIVE' : 'AUTO_SYNC: INACTIVE'}
+            <span className="h-1 w-1 rounded-full animate-pulse" style={{ backgroundColor: isSyncing ? '#60a5fa' : (syncOnAccept ? activeTheme.accent : '#f97316') }}></span>
+            {isSyncing ? 'COMMITTING...' : (syncOnAccept ? 'AUTO_SYNC: ACTIVE' : 'AUTO_SYNC: INACTIVE')}
           </span>
         )}
       </div>
@@ -75,11 +79,11 @@ export const SyncControl: React.FC<SyncControlProps> = ({
         >
           {isSyncing ? (
             <>
-              <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <svg className="animate-spin h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <span>SYNCING...</span>
+              <span>SYNCING_QUEUE...</span>
             </>
           ) : (
             'TRIGGER_SYNC'
