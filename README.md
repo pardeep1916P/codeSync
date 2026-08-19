@@ -8,7 +8,7 @@
   <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd">
     <img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?style=for-the-badge&logo=googlechrome&logoColor=white&label=Chrome%20Web%20Store&color=emerald" alt="Chrome Web Store" />
   </a>
-  <a href="https://partner.microsoft.com/dashboard/microsoftedge/overview">
+  <a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj">
     <img src="https://img.shields.io/badge/Edge_Add--ons-v1.0.0-blue?style=for-the-badge&logo=microsoftedge&logoColor=white" alt="Microsoft Edge" />
   </a>
   <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd">
@@ -34,7 +34,7 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 | :---: | :---: | :---: | :---: |
 | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/chrome/chrome_48x48.png" width="36" alt="Google Chrome" /><br><b>Google Chrome</b></a> | [Chrome Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd) | `✅ Deployed & Live` | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?label=version&color=emerald&style=flat-square" alt="Chrome Version" /></a> |
 | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/brave/brave_48x48.png" width="36" alt="Brave" /><br><b>Brave</b></a> | [Install via Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd) | `✅ Supported` | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?label=version&color=emerald&style=flat-square" alt="Brave Version" /></a> |
-| <a href="https://partner.microsoft.com/dashboard/microsoftedge/overview"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_48x48.png" width="36" alt="Microsoft Edge" /><br><b>Microsoft Edge</b></a> | [Edge Add-ons](https://partner.microsoft.com/dashboard/microsoftedge/overview) | `✅ Deployed (In Review)` | `v1.0.0` |
+| <a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/edge/edge_48x48.png" width="36" alt="Microsoft Edge" /><br><b>Microsoft Edge</b></a> | [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj) | `✅ Deployed & Live` | <a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj"><img src="https://img.shields.io/badge/edge-v1.0.0-blue?style=flat-square" alt="Edge Version" /></a> |
 | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/vivaldi/vivaldi_48x48.png" width="36" alt="Vivaldi" /><br><b>Vivaldi</b></a> | [Install via Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd) | `✅ Supported` | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?label=version&color=emerald&style=flat-square" alt="Vivaldi Version" /></a> |
 | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://raw.githubusercontent.com/alrra/browser-logos/main/src/opera/opera_48x48.png" width="36" alt="Opera" /><br><b>Opera / Opera GX</b></a> | [Install via Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd) | `✅ Supported` | <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd"><img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?label=version&color=emerald&style=flat-square" alt="Opera Version" /></a> |
 
@@ -57,7 +57,7 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 ## 🚀 Easy Setup Guide
 
 ### Step 1: Install the Extension
-1. Install CodeSync directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd).
+1. Install CodeSync from the [Chrome Web Store](https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd) or the [Microsoft Edge Add-ons Store](https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj).
 
 ### Step 2: Connect your GitHub Account
 1. Click the **CodeSync** icon in your browser extension toolbar.
