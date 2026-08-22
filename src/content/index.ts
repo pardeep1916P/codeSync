@@ -18,20 +18,26 @@
 // to comply with strict Content Security Policies on LeetCode.
 
 import { htmlToMarkdown } from '../utils/html';
+import { logToBackground, warnToBackground } from '../utils/logger';
+import { LRUCache } from '../utils/lru';
+
+interface QuestionMetadata {
+  questionId: string;
+  title: string;
+  titleSlug: string;
+  difficulty: string;
+  content: string;
+  topicTags?: { name: string }[];
+}
+
+// ── In-Memory Question Metadata Cache (Zero-latency lookup) ────────────────
+const questionCache = new LRUCache<string, QuestionMetadata>(50);
 
 // ── Processed submissions tracker (Bounded to prevent memory leaks) ──────────
-const MAX_IN_MEMORY_IDS = 200;
-const processedSubmissionIds = new Set<string>();
-const submissionIdQueue: string[] = [];
+const processedSubmissionIds = new LRUCache<string, boolean>(200);
 
 function trackSubmissionId(id: string): void {
-  if (processedSubmissionIds.has(id)) return;
-  processedSubmissionIds.add(id);
-  submissionIdQueue.push(id);
-  if (submissionIdQueue.length > MAX_IN_MEMORY_IDS) {
-    const oldest = submissionIdQueue.shift();
-    if (oldest) processedSubmissionIds.delete(oldest);
-  }
+  processedSubmissionIds.set(id, true);
 }
 
 function isContextInvalidated(): boolean {
@@ -39,46 +45,6 @@ function isContextInvalidated(): boolean {
     return !chrome.runtime || !chrome.runtime.id;
   } catch (e) {
     return true;
-  }
-}
-
-async function isAlreadyProcessed(id: string): Promise<boolean> {
-  if (isContextInvalidated()) return false;
-  try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const result = await chrome.storage.local.get('leetcode_processed_ids');
-      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
-      return !!processed[id];
-    }
-  } catch (e) {
-    // Ignore error
-  }
-  return false;
-}
-
-async function markAsProcessed(id: string): Promise<void> {
-  trackSubmissionId(id);
-
-  if (isContextInvalidated()) return;
-  try {
-    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-      const result = await chrome.storage.local.get('leetcode_processed_ids');
-      const processed = (result.leetcode_processed_ids || {}) as Record<string, boolean>;
-      processed[id] = true;
-
-      // Storage bounding: prune if it grows beyond 500 entries
-      const keys = Object.keys(processed);
-      if (keys.length > 500) {
-        const excess = keys.length - 400;
-        for (let i = 0; i < excess; i++) {
-          delete processed[keys[i]];
-        }
-      }
-
-      await chrome.storage.local.set({ leetcode_processed_ids: processed });
-    }
-  } catch (e) {
-    // Ignore error
   }
 }
 
@@ -153,54 +119,77 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
   const subId = data.submissionId;
   if (!subId) return;
 
+  logToBackground('CodeSync:Content', 'Handling accepted submission. SubId:', subId, 'isHistoricalEvent:', isHistoricalEvent);
+
   // Deduplicate synchronously in-memory first to prevent race conditions from simultaneous triggers
   if (processedSubmissionIds.has(subId)) {
+    logToBackground('CodeSync:Content', 'SubId already in in-memory processed set:', subId);
     return;
   }
-  processedSubmissionIds.add(subId);
-
-  const alreadyDone = await isAlreadyProcessed(subId);
-  if (alreadyDone) {
-    return;
-  }
+  trackSubmissionId(subId);
 
   let question = data.question;
   let code = data.code;
   let lang = data.lang;
   let timestamp = data.timestamp;
 
-  // If we don't have full details, fetch them
+  // If question is missing, check in-memory questionCache first
+  if (!question) {
+    const slug = getQuestionSlug();
+    const cachedQ = questionCache.get(slug) || questionCache.get(subId);
+    if (cachedQ && cachedQ.content) {
+      question = cachedQ;
+      logToBackground('CodeSync:Content', 'Retrieved question metadata from in-memory cache for:', slug);
+    }
+  }
+
+  // If we still don't have full details, fetch them
   if (!question || !code) {
+    logToBackground('CodeSync:Content', 'Details incomplete, fetching full details for subId:', subId);
     const details = await fetchSubmissionDetails(subId);
     if (!details) {
+      warnToBackground('CodeSync:Content', 'Failed to fetch submission details for subId:', subId);
       processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
     if (details.statusCode !== 10) {
+      logToBackground('CodeSync:Content', 'Fetched details statusCode is not 10:', details.statusCode);
       processedSubmissionIds.delete(subId); // Release lock on failure
       return;
     }
-    question = details.question;
-    code = details.code;
+    question = details.question || question;
+    code = details.code || code;
     lang = details.lang?.name || lang;
     timestamp = details.timestamp || timestamp;
+
+    if (question && question.titleSlug) {
+      questionCache.set(question.titleSlug, question);
+    }
   }
 
   if (!question) {
+    warnToBackground('CodeSync:Content', 'Question is null for subId:', subId);
     processedSubmissionIds.delete(subId); // Release lock on failure
     return;
   }
 
   // ── Bulletproof Historical Submission Guard ────────────────────────────
-  // If explicitly flagged historical OR solved > 5 minutes (300s) ago:
-  const isOlderThan5Min = (Date.now() - (timestamp || 0) * 1000) > 300_000;
-  if (isHistoricalEvent || isOlderThan5Min) {
+  // A submission is strictly historical if its timestamp is older than 5 minutes (300s)
+  const hasTimestamp = typeof timestamp === 'number' && timestamp > 0;
+  const timestampMs = hasTimestamp ? (timestamp > 1e11 ? timestamp : timestamp * 1000) : Date.now();
+  const isOlderThan5Min = hasTimestamp && (Date.now() - timestampMs > 300_000);
+
+  logToBackground('CodeSync:Content', 'Guard check: isHistoricalEvent =', isHistoricalEvent, 'isOlderThan5Min =', isOlderThan5Min, 'timestamp =', timestamp);
+
+  // Only discard if the problem is genuinely older than 5 minutes AND history sync is OFF
+  if (isOlderThan5Min) {
     try {
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
         const settingsData = await chrome.storage.local.get('settings');
         const syncHistoricalOnView = settingsData.settings?.syncHistoricalOnView ?? false;
+        logToBackground('CodeSync:Content', 'syncHistoricalOnView setting is:', syncHistoricalOnView);
         if (!syncHistoricalOnView) {
-          // Discard: History Sync is OFF
+          logToBackground('CodeSync:Content', 'Discarding historical submission (older than 5 min) because syncHistoricalOnView is false');
           processedSubmissionIds.delete(subId); // Allow it to be synced if user later enables History Sync
           return;
         }
@@ -230,27 +219,32 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
     },
     language: lang,
     code: code,
-    timestamp: (timestamp || 0) * 1000,
+    timestamp: timestampMs,
     status: 'ACCEPTED' as const,
   };
 
-  // Mark processed BEFORE sending to prevent duplicates from rapid-fire events
-  await markAsProcessed(subId);
+  logToBackground('CodeSync:Content', 'Sending ENQUEUE_SUBMISSION to background worker:', submission.id, submission.problem.title, isOlderThan5Min ? '(Historical)' : '(Live)');
 
   chrome.runtime.sendMessage(
-    { action: 'ENQUEUE_SUBMISSION', payload: submission }
+    { action: 'ENQUEUE_SUBMISSION', payload: submission },
+    (response) => {
+      logToBackground('CodeSync:Content', 'Background responded to ENQUEUE_SUBMISSION:', response);
+    }
   );
 }
 
 // ── Main entry point ───────────────────────────────────────────────────────
 function initContentScript() {
+  // Clean up legacy persistent processed IDs so historical sync is never blocked
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.remove('leetcode_processed_ids').catch(() => {});
+    }
+  } catch (e) {
+    // Ignore legacy storage cleanup errors
+  }
 
-  // Inject the network interceptor into the page context
-  const script = document.createElement('script');
-  script.src = chrome.runtime.getURL('interceptor.js');
-  (document.head || document.documentElement).appendChild(script);
-
-  // Listen for messages from the injected page script
+  // Listen for messages from the injected MAIN world interceptor
   const messageListener = async (event: MessageEvent) => {
     if (isContextInvalidated()) {
       window.removeEventListener('message', messageListener);
@@ -258,21 +252,30 @@ function initContentScript() {
     }
     if (event.source !== window) return;
 
-    const isHistorical = !!event.data?.isHistorical;
-    if (isHistorical) {
+    // Forward interceptor logs to background service worker
+    if (event.data?.type === 'CODESYNC_LOG' && event.data.payload) {
       try {
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          const settingsData = await chrome.storage.local.get('settings');
-          const syncHistoricalOnView = settingsData.settings?.syncHistoricalOnView ?? false;
-          if (!syncHistoricalOnView) {
-            return; // Discard historical submission if toggle is off
-          }
-        }
-      } catch {
-        return;
+        chrome.runtime.sendMessage({
+          action: 'LOG',
+          payload: event.data.payload
+        }).catch(() => {});
+      } catch (e) {
+        // Ignore transient messaging errors
       }
+      return;
     }
 
+    // Handle pre-cached question metadata
+    if (event.data?.type === 'CODESYNC_QUESTION_METADATA' && event.data.payload?.question) {
+      const q = event.data.payload.question;
+      if (q.titleSlug) questionCache.set(q.titleSlug, q);
+      if (q.questionId) questionCache.set(q.questionId, q);
+      const slug = getQuestionSlug();
+      if (slug) questionCache.set(slug, q);
+      return;
+    }
+
+    const isHistorical = !!event.data?.isHistorical;
     if (event.data?.type === 'CODESYNC_SUBMISSION_ACCEPTED') {
       await handleAcceptedSubmission(event.data.payload, isHistorical);
     }
@@ -351,7 +354,7 @@ function initContentScript() {
           lang: '',
           timestamp: Math.floor(Date.now() / 1000),
           question: null,
-        }, true); // Treat DOM scrape of static URL as potentially historical
+        }, false);
       }
     } catch (e) {
       // Silently ignore fallback errors

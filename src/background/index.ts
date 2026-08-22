@@ -85,12 +85,30 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // Listen for messages from content scripts or UI panels
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === 'LOG') {
+    const { level, prefix, args } = message.payload || {};
+    const formattedPrefix = `[${prefix || 'CodeSync'}]`;
+    if (level === 'warn') {
+      console.warn(formattedPrefix, ...(args || []));
+    } else if (level === 'error') {
+      console.error(formattedPrefix, ...(args || []));
+    } else {
+      console.log(formattedPrefix, ...(args || []));
+    }
+    return false;
+  }
+
   if (message.action === 'ENQUEUE_SUBMISSION') {
     const submission = message.payload as Submission;
+    console.log('[CodeSync:Background] Received ENQUEUE_SUBMISSION for:', submission?.id, submission?.problem?.title);
     
     queue.enqueue(submission)
-      .then(() => sendResponse({ success: true }))
+      .then(() => {
+        console.log('[CodeSync:Background] Successfully processed enqueue for:', submission?.id);
+        sendResponse({ success: true });
+      })
       .catch((err) => {
+        console.error('[CodeSync:Background] Error enqueuing submission:', err);
         sendResponse({ success: false, error: err.message });
       });
     
@@ -98,9 +116,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message.action === 'TRIGGER_SYNC') {
+    console.log('[CodeSync:Background] Received TRIGGER_SYNC');
     queue.processQueue()
-      .then(() => sendResponse({ success: true }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .then(() => {
+        console.log('[CodeSync:Background] TRIGGER_SYNC completed successfully');
+        sendResponse({ success: true });
+      })
+      .catch((err) => {
+        console.error('[CodeSync:Background] TRIGGER_SYNC failed:', err);
+        sendResponse({ success: false, error: err.message });
+      });
     
     return true;
   }

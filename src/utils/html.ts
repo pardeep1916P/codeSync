@@ -1,8 +1,15 @@
+import { LRUCache } from './lru';
+
+const markdownCache = new LRUCache<string, string>(100);
+
 /**
  * Converts LeetCode problem HTML description to clean GitHub Markdown.
  */
 export function htmlToMarkdown(html: string): string {
   if (!html) return '';
+
+  const cached = markdownCache.get(html);
+  if (cached !== undefined) return cached;
 
   let text = html;
 
@@ -61,5 +68,6 @@ export function htmlToMarkdown(html: string): string {
     .replace(/\n{3,}/g, '\n\n') // collapse multiple newlines
     .trim();
 
+  markdownCache.set(html, text);
   return text;
 }

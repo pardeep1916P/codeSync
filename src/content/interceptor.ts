@@ -2,6 +2,16 @@
 if (!(window as any).__codeSyncInjected) {
   (window as any).__codeSyncInjected = true;
 
+  const interceptorLog = (...args: any[]) => {
+    console.log('[CodeSync:Interceptor]', ...args);
+    window.postMessage({
+      type: 'CODESYNC_LOG',
+      payload: { prefix: 'CodeSync:Interceptor', level: 'log', args }
+    }, '*');
+  };
+
+  interceptorLog('Network interceptor loaded in page context');
+
   const originalFetch = window.fetch;
 
   window.fetch = async function(...args) {
@@ -21,9 +31,11 @@ if (!(window as any).__codeSyncInjected) {
             const match = url.match(/submissions\/detail\/(\d+)/);
             const subId = match ? match[1] : null;
             const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted';
+            interceptorLog('Intercepted /check/ endpoint. SubId:', subId, 'Accepted:', isAccepted, json);
             if (subId && isAccepted) {
               (window as any).__codeSyncRecentJudgeId = subId;
               (window as any).__codeSyncRecentJudgeTime = Date.now();
+              interceptorLog('Posting CODESYNC_JUDGING_ACCEPTED for subId:', subId);
               window.postMessage({
                 type: 'CODESYNC_JUDGING_ACCEPTED',
                 payload: {
@@ -37,11 +49,13 @@ if (!(window as any).__codeSyncInjected) {
             // Handle the check endpoint that LeetCode uses during judging
             if (json.data && json.data.submissionProgress) {
               const progress = json.data.submissionProgress;
+              interceptorLog('Intercepted submissionProgress:', progress);
               if (progress && progress.state === 'SUCCESS' && progress.statusCode === 10) {
                 const subId = String(progress.submissionId || '');
                 if (subId) {
                   (window as any).__codeSyncRecentJudgeId = subId;
                   (window as any).__codeSyncRecentJudgeTime = Date.now();
+                  interceptorLog('Posting CODESYNC_JUDGING_ACCEPTED from progress for subId:', subId);
                   window.postMessage({
                     type: 'CODESYNC_JUDGING_ACCEPTED',
                     payload: {
@@ -55,12 +69,14 @@ if (!(window as any).__codeSyncInjected) {
             // Detect submissionDetails
             if (json.data && json.data.submissionDetails) {
               const details = json.data.submissionDetails;
+              interceptorLog('Intercepted submissionDetails:', details?.id, 'statusCode:', details?.statusCode);
               if (details && details.statusCode !== undefined) {
                 if (details.statusCode === 10) {
                   const subId = String(details.id || '');
                   const recentJudgeId = (window as any).__codeSyncRecentJudgeId;
                   const recentJudgeTime = (window as any).__codeSyncRecentJudgeTime || 0;
                   const isActiveJudge = recentJudgeId === subId && (Date.now() - recentJudgeTime < 10000);
+                  interceptorLog('Posting CODESYNC_SUBMISSION_ACCEPTED. SubId:', subId, 'isHistorical:', !isActiveJudge);
 
                   window.postMessage({
                     type: 'CODESYNC_SUBMISSION_ACCEPTED',
@@ -79,11 +95,25 @@ if (!(window as any).__codeSyncInjected) {
               }
             }
 
+            // Pre-cache question metadata when user visits the problem page
+            if (json.data && json.data.question) {
+              const q = json.data.question;
+              if (q.questionId || q.titleSlug || q.title) {
+                interceptorLog('Pre-cached question metadata for:', q.titleSlug || q.title);
+                window.postMessage({
+                  type: 'CODESYNC_QUESTION_METADATA',
+                  payload: { question: q }
+                }, '*');
+              }
+            }
+
             // Handle submission list view
             if (json.data && json.data.submissionList) {
               const submissions = json.data.submissionList.submissions || [];
+              interceptorLog('Intercepted submissionList with', submissions.length, 'submissions');
               for (const sub of submissions) {
                 if (sub.statusDisplay === 'Accepted') {
+                  interceptorLog('Posting CODESYNC_SUBMISSION_LIST_ACCEPTED for subId:', sub.id);
                   window.postMessage({
                     type: 'CODESYNC_SUBMISSION_LIST_ACCEPTED',
                     isHistorical: true,

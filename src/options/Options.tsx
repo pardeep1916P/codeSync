@@ -5,6 +5,35 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { THEMES, getSavedThemeId } from '../styles/themes';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
+import { FolderLayout } from '../storage';
+
+interface LayoutOption {
+  id: FolderLayout;
+  name: string;
+  template: string;
+  description: string;
+}
+
+const LAYOUT_OPTIONS: LayoutOption[] = [
+  {
+    id: 'flat',
+    name: 'Flat Root',
+    template: '{problem_slug}/',
+    description: 'Saves problems directly in the repository root (e.g. two-sum/)'
+  },
+  {
+    id: 'platform',
+    name: 'Platform Namespaced',
+    template: '{platform}/{problem_slug}/',
+    description: 'Organizes solutions under platform folders (e.g. leetcode/two-sum/)'
+  },
+  {
+    id: 'difficulty',
+    name: 'Difficulty Grouped',
+    template: '{platform}/{difficulty}/{problem_slug}/',
+    description: 'Groups solutions by platform and difficulty (e.g. leetcode/Easy/two-sum/)'
+  },
+];
 
 const PrivateIcon: React.FC = () => (
   <svg className="w-4 h-4 text-rose-500 fill-none stroke-current shrink-0 animate-pulse" viewBox="0 0 24 24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -26,6 +55,7 @@ export const Options: React.FC = () => {
   const { initialize } = store;
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
+  const [isLayoutDropdownOpen, setIsLayoutDropdownOpen] = useState(false);
   const [themeId, setThemeId] = useState('amoled');
   const [tokenInput, setTokenInput] = useState('');
 
@@ -110,12 +140,15 @@ export const Options: React.FC = () => {
   }, [initialize]);
 
   useEffect(() => {
-    if (!isRepoDropdownOpen) return;
+    if (!isRepoDropdownOpen && !isLayoutDropdownOpen) return;
 
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.repo-dropdown-container')) {
+      if (isRepoDropdownOpen && !target.closest('.repo-dropdown-container')) {
         setIsRepoDropdownOpen(false);
+      }
+      if (isLayoutDropdownOpen && !target.closest('.layout-dropdown-container')) {
+        setIsLayoutDropdownOpen(false);
       }
     };
 
@@ -123,7 +156,7 @@ export const Options: React.FC = () => {
     return () => {
       document.removeEventListener('click', handleOutsideClick);
     };
-  }, [isRepoDropdownOpen]);
+  }, [isRepoDropdownOpen, isLayoutDropdownOpen]);
 
   useEffect(() => {
     const activeTheme = THEMES[themeId] || THEMES.matrix;
@@ -410,38 +443,95 @@ export const Options: React.FC = () => {
                 }}
               />
             </div>
+
+            <div className="border-t" style={{ borderColor: activeTheme.border }}></div>
+
+            {/* Desktop Notifications Toggle */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-col gap-1 pr-4">
+                <Label htmlFor="desktop-notifications" className="cursor-pointer text-xs font-bold tracking-wider uppercase" style={{ color: activeTheme.textHighlight }}>
+                  Desktop Notifications
+                </Label>
+                <p className="text-[11px] font-semibold leading-relaxed opacity-60">
+                  Display Chrome desktop system notifications when submissions are queued or synced.
+                </p>
+              </div>
+              <Switch
+                id="desktop-notifications"
+                checked={store.desktopNotifications}
+                onCheckedChange={(checked) => {
+                  store.setDesktopNotifications(checked);
+                  showToast(checked ? 'Desktop notifications enabled' : 'Desktop notifications disabled', 'success');
+                }}
+              />
+            </div>
           </div>
         </section>
 
         {/* Directory Customization */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Repository Structure Layout (Future)</h2>
-          <div className="border rounded-2xl p-5 flex flex-col gap-2.5" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Repository Structure Layout</h2>
+          <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
             <p className="text-xs leading-relaxed opacity-60">
-              Customize directory templates. Default: <code className="px-2 py-1 rounded border text-[10px] font-mono" style={{ backgroundColor: activeTheme.inputBg, borderColor: activeTheme.border, color: activeTheme.accent }}>{`{platform}/{problem_slug}/`}</code>
+              Select how solution files and folders are structured inside your repository.
             </p>
-            <div className="flex gap-2.5 mt-1.5 max-w-md">
-              <input
-                type="text"
-                disabled
-                placeholder="{platform}/{problem_slug}/"
-                className="flex-1 px-3.5 py-2.5 border rounded-xl text-xs cursor-not-allowed font-mono"
+
+            <div className="relative w-full max-w-md layout-dropdown-container">
+              <button
+                onClick={() => setIsLayoutDropdownOpen(!isLayoutDropdownOpen)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 border rounded-xl text-xs font-semibold hover:bg-white/5 transition-all duration-150"
                 style={{ 
                   backgroundColor: activeTheme.inputBg, 
                   borderColor: activeTheme.border,
-                  color: activeTheme.text
+                  color: activeTheme.textHighlight
                 }}
-              />
-              <Button disabled variant="secondary" className="rounded-xl px-4 py-2 border opacity-50" style={{ borderColor: activeTheme.border }}>Save Layout</Button>
+              >
+                <div className="flex flex-col items-start gap-0.5">
+                  <span className="font-bold flex items-center gap-2">
+                    <span>{LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'flat'))?.name || 'Flat Root'}</span>
+                    <code className="text-[10px] px-1.5 py-0.5 rounded border opacity-75 font-mono" style={{ borderColor: activeTheme.border, color: activeTheme.accent }}>
+                      {LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'flat'))?.template || '{problem_slug}/'}
+                    </code>
+                  </span>
+                </div>
+                <svg className="fill-current h-4 w-4 transition-transform duration-150 shrink-0" style={{ color: activeTheme.text, transform: isLayoutDropdownOpen ? 'rotate(180deg)' : 'none' }} viewBox="0 0 20 20">
+                  <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                </svg>
+              </button>
+
+              {isLayoutDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-1.5 border rounded-xl shadow-2xl z-50 py-1"
+                     style={{ 
+                       backgroundColor: activeTheme.bg, 
+                       borderColor: activeTheme.border 
+                     }}>
+                  {LAYOUT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        store.setFolderLayout(opt.id);
+                        setIsLayoutDropdownOpen(false);
+                        showToast(`Directory layout set to ${opt.name}`, 'success');
+                      }}
+                      className="w-full flex flex-col items-start gap-1 px-3.5 py-2.5 text-left text-xs font-semibold transition-all duration-150 hover:bg-white/5 border-b last:border-b-0"
+                      style={{ 
+                        borderColor: 'rgba(255,255,255,0.05)',
+                        color: store.folderLayout === opt.id ? activeTheme.textHighlight : activeTheme.text,
+                        backgroundColor: store.folderLayout === opt.id ? 'rgba(255,255,255,0.03)' : 'transparent'
+                      }}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-bold">{opt.name}</span>
+                        <code className="text-[10px] px-1.5 py-0.5 rounded border opacity-75 font-mono" style={{ borderColor: activeTheme.border, color: activeTheme.accent }}>
+                          {opt.template}
+                        </code>
+                      </div>
+                      <span className="text-[10px] opacity-60 font-normal leading-relaxed">{opt.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <span className="text-[9px] font-bold border px-2.5 py-1 rounded-md w-max uppercase tracking-wider"
-                  style={{ 
-                    backgroundColor: activeTheme.badgeBg, 
-                    borderColor: activeTheme.badgeBorder,
-                    color: activeTheme.badgeText
-                  }}>
-              Available in Phase 2
-            </span>
           </div>
         </section>
 

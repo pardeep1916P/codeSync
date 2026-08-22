@@ -59,7 +59,9 @@ export const Popup: React.FC = () => {
     }
 
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
+      console.log('[CodeSync:Popup] storage.onChanged event in Popup:', Object.keys(changes));
       if (changes.settings) {
+        console.log('[CodeSync:Popup] Settings changed, re-initializing store');
         initialize();
       }
       if (changes.themeId) {
@@ -68,6 +70,7 @@ export const Popup: React.FC = () => {
     };
 
     const handleRuntimeMessage = (message: { action: string; payload: { problemTitle: string; error?: string; queueLength?: number } }) => {
+      console.log('[CodeSync:Popup] Received runtime message:', message.action, message.payload);
       if (message.action === 'SYNC_SUCCESS') {
         showToast(`Synced "${message.payload.problemTitle}" successfully!`, 'success');
         initialize();
@@ -136,6 +139,7 @@ export const Popup: React.FC = () => {
 
   useEffect(() => {
     const fetchPendingDetails = async () => {
+      console.log('[CodeSync:Popup] fetchPendingDetails triggered. store.commitQueue:', store.commitQueue);
       if (store.commitQueue.length === 0) {
         setPendingSubmissions([]);
         return;
@@ -169,6 +173,7 @@ export const Popup: React.FC = () => {
         return { id, title: `Submission #${id}`, lang: '' };
       });
 
+      console.log('[CodeSync:Popup] fetchPendingDetails finished. Resolved pending items:', list);
       setPendingSubmissions(list);
     };
 

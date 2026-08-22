@@ -45,12 +45,16 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 
 ## ✨ Key Features
 
-* **⚡ Instant Auto-Sync**: Pushes your accepted LeetCode solutions to GitHub the moment you solve them.
-* **📥 Pending Commit Queue**: Keep Auto-Sync off to hold your solutions in a local queue, allowing you to review, delete, or sync them manually whenever you want.
+* **⚡ Instant Auto-Sync (<10ms Enqueue)**: Pushes your accepted coding solutions to GitHub the moment you solve them with in-memory pre-cached question metadata.
+* **🕒 Authentic Historical Timestamps**: Historical submissions committed to GitHub reflect their original solve date on your GitHub activity graph.
+* **🌐 Multi-Platform Foundation**: Built for LeetCode, Codeforces, HackerRank, and GeeksforGeeks.
+* **📂 Configurable Repository Layouts**: Choose between Flat Root (`{slug}/`), Platform Namespaced (`{platform}/{slug}/`), or Difficulty Grouped (`{platform}/{difficulty}/{slug}/`).
+* **📥 Pending Commit Queue**: Keep Auto-Sync off to hold your solutions in a local queue, allowing you to review, delete, or sync them manually in batch.
 * **🔄 Smart Deduplication**: If you submit the same problem multiple times, CodeSync automatically updates the queue with your latest solution so you never push duplicate commits.
+* **🔔 Optional Desktop Notifications**: Toggle Chrome desktop OS notifications on or off according to your preference (off by default).
 * **🎨 15+ Curated Themes**: Choose from vibrant layouts (AMOLED, Dracula, Tokyo Night, Cyberpunk, Matrix, Nord, and more) to fit your dark mode aesthetic.
-* **🔒 Private & Secure**: Authenticate securely using GitHub OAuth or your own Personal Access Token (PAT). Your credentials are saved locally in your browser storage.
-* **🚀 Lightweight & Silent**: Zero background battery drain and 100% silent runtime with no console log noise.
+* **🔒 Private & Secure**: Authenticate securely using GitHub OAuth or your own Personal Access Token (PAT). All tokens are encrypted at rest with AES-GCM (256-bit).
+* **🚀 Lightweight & Silent**: Zero background battery drain and 100% silent runtime in production builds.
 
 ---
 

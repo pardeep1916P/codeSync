@@ -406,6 +406,11 @@ export class GitHubClient {
         email,
         date: payload.authorDate,
       };
+      commitParams.committer = {
+        name,
+        email,
+        date: payload.authorDate,
+      };
     }
 
     const newCommitResponse = await this.request<{ sha: string }>(

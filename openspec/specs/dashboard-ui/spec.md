@@ -26,7 +26,11 @@ CodeSync provides an intuitive, high-performance React dashboard popup with modu
 ### Requirement: Dynamic Versioning & Options Page Architecture
 - UI components MUST NOT hardcode static version numbers.
 - The extension version MUST be dynamically retrieved from the extension manifest via `chrome.runtime.getManifest().version`.
-- The Options (Settings) page MUST provide distinct, modal-confirmed actions for:
+- The Options (Settings) page MUST provide an interactive themed dropdown in Section 4 for selecting the target repository layout template:
+  1. `Flat Mode`: `{problem_slug}/`
+  2. `Platform Namespaced`: `{platform}/{problem_slug}/`
+  3. `Difficulty Grouped`: `{platform}/{difficulty}/{problem_slug}/`
+- The Options page MUST provide distinct, modal-confirmed actions for:
   1. *Clear Pending Queue*: Flushes queued submissions without disconnecting user credentials.
   2. *Reset Extension Settings*: Full credential and settings wipe.
 - Notification toasts on the Options page MUST be horizontally centered at the bottom of the viewport using Flexbox containers to prevent CSS transform animation conflicts.
@@ -43,8 +47,9 @@ CodeSync provides an intuitive, high-performance React dashboard popup with modu
 - Selected theme preference MUST persist in `chrome.storage.local`.
 - Dropdowns and scrollable containers MUST use styled dark scrollbars matching the active theme palette.
 
-### Requirement: Radix & shadcn/ui Switches & History Sync Badge
-- Form toggles (such as *Instant Sync on Accept* and *Historical Submissions Sync*) MUST use accessible Radix UI primitives with smooth sliding thumbs (`@radix-ui/react-switch` and `@radix-ui/react-label`).
+### Requirement: Radix & shadcn/ui Switches & Behavioral Controls
+- Form toggles (*Instant Sync on Accept*, *Historical Submissions Sync*, and *Desktop Notifications*) MUST use accessible Radix UI primitives with smooth sliding thumbs (`@radix-ui/react-switch` and `@radix-ui/react-label`).
+- *Desktop Notifications* MUST be OFF by default and respect `desktopNotifications` in storage.
 - When `syncHistoricalOnView` is `false`, the popup UI MUST remain completely clean with zero badges representing historical sync.
 - When `syncHistoricalOnView` is `true`, a badge `[HIST_SYNC: ACTIVE]` MUST be rendered to the **left** of the `AUTO_SYNC` badge without displacing or causing layout shift to the `AUTO_SYNC` badge.
 

@@ -28,10 +28,17 @@ If you want to run or test the extension locally, follow these steps:
 
 ## 💻 Development Commands
 
-* **`npm run dev`** — Launch Vite development server.
-* **`npm run build`** — Compile TypeScript and build production bundle using Vite.
+* **`npm run dev`** — Launch Vite development build with live watch mode (full debug logging enabled in Chrome).
+* **`npm run build:dev`** — Build extension package for local development with full diagnostic logs enabled.
+* **`npm run build`** — Compile TypeScript and generate clean, minified production build with all console logging automatically stripped for store deployment.
 * **`npm run lint`** — Run ESLint checks across source tree.
 * **`npm run test`** — Execute unit tests using Vitest.
+
+> [!TIP]
+> **Debugging Production Builds**: If you need to debug a minified production build, run:
+> ```bash
+> VITE_ENABLE_LOGS=true npm run build
+> ```
 
 ---
 

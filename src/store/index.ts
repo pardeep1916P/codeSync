@@ -41,6 +41,8 @@ interface AppState extends UserSettings {
   selectRepo: (repoFullName: string) => Promise<void>;
   setSyncOnAccept: (value: boolean) => Promise<void>;
   setSyncHistoricalOnView: (value: boolean) => Promise<void>;
+  setDesktopNotifications: (value: boolean) => Promise<void>;
+  setFolderLayout: (layout: UserSettings['folderLayout']) => Promise<void>;
   removeItemFromQueue: (id: string) => Promise<void>;
   clearQueue: (id?: string) => Promise<void>;
   refreshGithubData: (silent?: boolean) => Promise<void>;
@@ -54,6 +56,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectedRepo: null,
   syncOnAccept: true,
   syncHistoricalOnView: false,
+  desktopNotifications: false,
+  folderLayout: 'flat',
   commitQueue: [],
   isLoading: true,
   isSyncing: false,
@@ -93,22 +97,28 @@ export const useStore = create<AppState>((set, get) => ({
         isListenerRegistered = true;
         chrome.storage.onChanged.addListener((changes, areaName) => {
           if (areaName === 'local') {
+            console.log('[CodeSync:Store] chrome.storage.onChanged fired:', Object.keys(changes));
             if (changes.settings) {
-              const newSettings = changes.settings.newValue;
-              if (newSettings) {
+              console.log('[CodeSync:Store] storage.onChanged detected settings update');
+              storage.getSettings().then((decryptedSettings) => {
+                console.log('[CodeSync:Store] Loaded decrypted settings. commitQueue length:', decryptedSettings.commitQueue?.length);
                 set({
-                  githubToken: newSettings.githubToken,
-                  githubUser: newSettings.githubUser,
-                  selectedRepo: newSettings.selectedRepo,
-                  syncOnAccept: newSettings.syncOnAccept,
-                  commitQueue: newSettings.commitQueue || [],
+                  githubToken: decryptedSettings.githubToken,
+                  githubUser: decryptedSettings.githubUser,
+                  selectedRepo: decryptedSettings.selectedRepo,
+                  syncOnAccept: decryptedSettings.syncOnAccept,
+                  commitQueue: decryptedSettings.commitQueue || [],
                 });
-              }
+              }).catch((err) => {
+                console.error('[CodeSync:Store] Error getting decrypted settings on change:', err);
+              });
             }
             if (changes.codesync_is_syncing) {
+              console.log('[CodeSync:Store] isSyncing changed to:', !!changes.codesync_is_syncing.newValue);
               set({ isSyncing: !!changes.codesync_is_syncing.newValue });
             }
             if (changes.codesync_solved_count) {
+              console.log('[CodeSync:Store] solvedCount changed to:', changes.codesync_solved_count.newValue);
               set({ solvedCount: changes.codesync_solved_count.newValue });
             }
             if (changes.updateInfo) {
@@ -121,6 +131,7 @@ export const useStore = create<AppState>((set, get) => ({
       // Phase 2: Silently refresh from GitHub API in background
       if (settings.githubToken) {
         try {
+          console.log('[CodeSync:Store] Phase 2: Fetching user and repositories from GitHub API');
           const client = new GitHubClient(settings.githubToken);
           const [user, repositories] = await Promise.all([
             client.getUser(),
@@ -135,11 +146,12 @@ export const useStore = create<AppState>((set, get) => ({
             if (solved > 0) set({ solvedCount: solved });
           }
         } catch (err) {
+          console.warn('[CodeSync:Store] Phase 2 GitHub API error:', err);
           if (isAuthError(err)) {
-            // Expired or revoked token: perform clean automatic logout
+            console.warn('[CodeSync:Store] Revoked/expired token detected, logging out');
             await get().logout();
-          } else if (!cachedUser) {
-            await get().logout();
+          } else {
+            set({ error: (err as Error).message });
           }
         }
       }
@@ -254,6 +266,16 @@ export const useStore = create<AppState>((set, get) => ({
   setSyncHistoricalOnView: async (value: boolean) => {
     await storage.updateSettings({ syncHistoricalOnView: value });
     set({ syncHistoricalOnView: value });
+  },
+
+  setDesktopNotifications: async (value: boolean) => {
+    await storage.updateSettings({ desktopNotifications: value });
+    set({ desktopNotifications: value });
+  },
+
+  setFolderLayout: async (layout: UserSettings['folderLayout']) => {
+    await storage.updateSettings({ folderLayout: layout });
+    set({ folderLayout: layout });
   },
 
   removeItemFromQueue: async (id: string) => {
