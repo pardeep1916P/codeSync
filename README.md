@@ -47,7 +47,7 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 
 * **⚡ Instant Auto-Sync (<10ms Enqueue)**: Pushes your accepted coding solutions to GitHub the moment you solve them with in-memory pre-cached question metadata.
 * **🕒 Authentic Historical Timestamps**: Historical submissions committed to GitHub reflect their original solve date on your GitHub activity graph.
-* **🌐 Multi-Platform Foundation**: Built for LeetCode, Codeforces, HackerRank, and GeeksforGeeks.
+* **🌐 Multi-Platform Extensible Foundation**: Built for LeetCode, Codeforces, HackerRank, and GeeksforGeeks.
 * **📂 Configurable Repository Layouts**: Choose between Flat Root (`{slug}/`), Platform Namespaced (`{platform}/{slug}/`), or Difficulty Grouped (`{platform}/{difficulty}/{slug}/`).
 * **📥 Pending Commit Queue**: Keep Auto-Sync off to hold your solutions in a local queue, allowing you to review, delete, or sync them manually in batch.
 * **🔄 Smart Deduplication**: If you submit the same problem multiple times, CodeSync automatically updates the queue with your latest solution so you never push duplicate commits.
@@ -55,6 +55,59 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 * **🎨 15+ Curated Themes**: Choose from vibrant layouts (AMOLED, Dracula, Tokyo Night, Cyberpunk, Matrix, Nord, and more) to fit your dark mode aesthetic.
 * **🔒 Private & Secure**: Authenticate securely using GitHub OAuth or your own Personal Access Token (PAT). All tokens are encrypted at rest with AES-GCM (256-bit).
 * **🚀 Lightweight & Silent**: Zero background battery drain and 100% silent runtime in production builds.
+
+---
+
+## 🌐 Supported Coding Platforms
+
+| Platform | URL Pattern | Status | Support Level |
+| :--- | :--- | :---: | :--- |
+| **LeetCode** | `leetcode.com`, `leetcode.cn` | `✅ Live` | Full Network Interception & GraphQL Pre-caching |
+| **Codeforces** | `codeforces.com`, `codeforces.net` | `⚡ Ready` | Multi-platform Adapter & Language Map |
+| **HackerRank** | `hackerrank.com` | `⚡ Ready` | Multi-platform Adapter & Language Map |
+| **GeeksforGeeks** | `geeksforgeeks.org` | `⚡ Ready` | Multi-platform Adapter & Language Map |
+
+---
+
+## ⚙️ Extension Settings & Layout Templates
+
+Access the **Settings / Options Page** anytime by clicking the gear icon in the popup header:
+
+### 1. Synchronization Rules
+* **Instant Sync on Accept**: Automatically syncs solutions the moment they are accepted on coding sites.
+* **Historical Submissions Sync**: Syncs older accepted submissions when viewing past submission details (commits are backdated to the original solve timestamp on GitHub).
+* **Desktop Notifications**: Optional Chrome OS desktop notifications on sync and queue events (disabled by default to prevent desktop clutter).
+
+### 2. Repository Structure Layouts
+* **Flat Root (`{problem_slug}/`)** *(Default)*:
+  ```text
+  my-leetcode-repo/
+  ├── README.md
+  ├── stats.json
+  └── two-sum/
+      ├── README.md
+      └── two-sum.cpp
+  ```
+* **Platform Namespaced (`{platform}/{problem_slug}/`)**:
+  ```text
+  my-competitive-programming-repo/
+  ├── README.md
+  ├── stats.json
+  ├── leetcode/
+  │   └── two-sum/
+  └── codeforces/
+      └── 158A-next-round/
+  ```
+* **Difficulty Grouped (`{platform}/{difficulty}/{problem_slug}/`)**:
+  ```text
+  my-solutions/
+  ├── README.md
+  └── leetcode/
+      ├── Easy/
+      │   └── two-sum/
+      └── Medium/
+          └── add-two-numbers/
+  ```
 
 ---
 
@@ -67,13 +120,30 @@ CodeSync is a lightweight and beautiful browser extension that automatically sav
 1. Click the **CodeSync** icon in your browser extension toolbar.
 2. Click **Authenticate with OAuth** to log in instantly, or enter a **GitHub Personal Access Token (PAT)** with `repo` permissions.
 3. Select your target repository from the dropdown.
-4. Toggle **Auto-Sync** to active, and start solving problems on LeetCode!
+4. Toggle **Auto-Sync** to active, and start solving problems!
 
 ---
 
-## 🛠️ Developer Documentation
+## 💻 Developer & Contributor Commands
 
-Are you looking to modify the extension, run local tests, or configure CI/CD release pipelines? Check out our [Developer Guide](document.md).
+```bash
+# Install dependencies
+npm install --legacy-peer-deps
+
+# Start development build with live reload and full console logs
+npm run dev
+
+# Run full Vitest unit test suite
+npm run test
+
+# Run ESLint validation
+npm run lint
+
+# Build production package for store release (clean, zero console logs)
+npm run build
+```
+
+For comprehensive architecture details, security specifications, and CI/CD pipelines, see [Developer Guide](document.md).
 
 ---
 
