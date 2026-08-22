@@ -162,7 +162,7 @@ export class CommitQueue {
         const problem = submission.problem;
         const fileExtension = this.getFileExtension(submission.language);
         const layout = settings.folderLayout || 'flat';
-        const platform = (submission as any).platform || 'leetcode';
+        const platform = submission.platform || problem.platform || 'leetcode';
         let problemFolder = `${problem.slug}`;
         if (layout === 'platform') {
           problemFolder = `${platform}/${problem.slug}`;

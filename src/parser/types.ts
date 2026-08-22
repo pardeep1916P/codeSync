@@ -8,6 +8,7 @@ export interface Problem {
   description: string; // Markdown or HTML description
   tags: string[];
   url: string;
+  platform?: string;
 }
 
 export interface Submission {
@@ -17,6 +18,7 @@ export interface Submission {
   code: string;
   timestamp: number;
   status: 'ACCEPTED' | 'FAILED' | 'PENDING';
+  platform?: string;
 }
 
 export interface PlatformAdapter {
