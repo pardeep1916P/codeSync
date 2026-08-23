@@ -18,6 +18,17 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: 'Store Deployment Target'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - edge
+          - chrome
+          - none
 
 permissions:
   contents: write
@@ -64,6 +75,10 @@ jobs:
           cp codesync-extension.zip dist.zip
 
       - name: Upload & Publish to Chrome Web Store
+        if: |
+          !contains(github.event.head_commit.message, '[skip deploy]') &&
+          !contains(github.event.head_commit.message, '[deploy edge]') &&
+          (github.event_name != 'workflow_dispatch' || inputs.deploy_target == 'all' || inputs.deploy_target == 'chrome')
         continue-on-error: true
         env:
           EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
@@ -75,6 +90,10 @@ jobs:
           npx chrome-webstore-upload-cli@3.5.0 publish
 
       - name: Upload & Publish to Microsoft Edge Add-ons
+        if: |
+          !contains(github.event.head_commit.message, '[skip deploy]') &&
+          !contains(github.event.head_commit.message, '[deploy chrome]') &&
+          (github.event_name != 'workflow_dispatch' || inputs.deploy_target == 'all' || inputs.deploy_target == 'edge')
         continue-on-error: true
         uses: wdzeng/edge-addon@v2
         with:
