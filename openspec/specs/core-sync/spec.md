@@ -16,11 +16,21 @@ CodeSync intercepts accepted coding problem submissions in real time, queues the
 - Submissions MUST be held in a local queue managed via `chrome.storage.local`.
 - If a submission with the same ID or problem slug is submitted multiple times, the queue MUST update existing items to avoid duplicate commits.
 - File extension mapping, human-readable display names, and markdown code fence IDs MUST be centralized across platform adapters.
-- Target folder layout MUST support user-configurable templates:
-  1. `Flat Mode`: `{problem_slug}/`
+- Target folder layout MUST support user-configurable templates (defaulting to **Difficulty Grouped**):
+  1. `Difficulty Grouped` (Default): `{platform}/{difficulty}/{problem_slug}/`
   2. `Platform Namespaced`: `{platform}/{problem_slug}/`
-  3. `Difficulty Grouped`: `{platform}/{difficulty}/{problem_slug}/`
+  3. `Flat Mode`: `{problem_slug}/`
 - Pending queue details in the popup MUST be loaded using batched storage reads (`chrome.storage.local.get(keys)`) rather than sequential round trips.
+
+### Requirement: In-Repository Preference Persistence & Cross-Device Sync
+- CodeSync MUST persist repository-specific configuration inside `stats.json` under an opaque, base64-encoded `codesync_state` string (e.g. `cs:<base64-json>`).
+- Encoded state MUST encapsulate the following 5 user preferences:
+  1. `layout`: Selected repository folder hierarchy
+  2. `syncOnAccept`: Instant sync on accept toggle
+  3. `syncHistoricalOnView`: Historical submissions sync toggle
+  4. `desktopNotifications`: Desktop OS notification toggle
+  5. `theme`: Active UI theme
+- When connecting to or switching repositories on any device or browser, CodeSync MUST automatically decode `codesync_state` and synchronize local extension storage and UI state.
 
 ### Requirement: Authentic Historical Timestamps & Chronological Git Sync
 - Submissions MUST be committed using the GitHub Git Trees API.
@@ -47,6 +57,6 @@ CodeSync intercepts accepted coding problem submissions in real time, queues the
 - Active judging events (`/check/`, `submissionProgress`) MUST always be processed in real time regardless of the historical setting.
 - Past submissions viewed via the platform's history tab or direct historical URL visits (timestamp > 5 minutes ago) MUST be discarded immediately when `syncHistoricalOnView === false`.
 - When `syncHistoricalOnView === true`, historical submissions MUST be queued/synced using their original accepted timestamp without altering or overwriting newer solutions in identical languages.
-- The system MUST use a modular `PlatformAdapter` interface (`src/platforms/`) to support LeetCode, Codeforces, HackerRank, and GeeksforGeeks.
+- The system MUST use a modular `PlatformAdapter` interface (`src/platforms/`) supporting LeetCode, Codeforces, HackerRank, GeeksforGeeks, and CodeChef (`codechef.com`).
 
 

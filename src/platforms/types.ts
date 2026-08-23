@@ -1,4 +1,4 @@
-export type PlatformId = 'leetcode' | 'codeforces' | 'hackerrank' | 'geeksforgeeks' | 'neetcode';
+export type PlatformId = 'leetcode' | 'codeforces' | 'hackerrank' | 'geeksforgeeks' | 'codechef' | 'neetcode';
 
 export type Difficulty = 'Easy' | 'Medium' | 'Hard' | string;
 

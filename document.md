@@ -121,13 +121,14 @@ flowchart TD
         GH[GitHubClient / src/github]
         RD[ReadmeGenerator / src/readme]
         PS[LeetCodeParser / src/parser]
+        PL[Platform Adapters / src/platforms]
     end
 
     HB & UB & RC & SC & AF & FT --> ZS
     ZS --> SW
     SW --> UC & UA & RL
     SW --> CQ
-    CQ --> GH & RD & PS
+    CQ --> GH & RD & PS & PL
 ```
 
 ---
@@ -136,23 +137,27 @@ flowchart TD
 
 ```
 ├── .github/
-│   └── workflows/          # GitHub Actions CI/CD workflows (Build, Test, Deploy)
+│   └── workflows/          # GitHub Actions CI/CD workflows (Build, Test, Store Deployments)
+├── context/                # Project phases, technical decisions & architecture memory
 ├── docs/                   # Project documentation & promotional media assets
+├── openspec/               # Spec-Driven Development specifications & requirements
 ├── public/                 # Manifest configuration and production icons
 ├── src/
 │   ├── background/         # Service worker managing update alarms, queues, and messaging
 │   ├── components/         # Common reusable UI components (Button, etc.)
-│   ├── content/            # LeetCode DOM bridge and network interceptor
+│   ├── content/            # DOM bridge and native MAIN world network interceptor
 │   ├── github/             # Git Trees API client and OAuth integrations
 │   ├── parser/             # Submission parsers (pure functions with unit tests)
+│   ├── platforms/          # Multi-platform adapters (LeetCode, Codeforces, HackerRank, GFG, CodeChef)
 │   ├── popup/              # Main Dashboard React user interface
 │   │   └── components/     # Modular UI blocks (Header, UpdateBanner, SyncControl, etc.)
-│   ├── queue/              # Submission commit queue logic and deduplication
+│   ├── queue/              # Submission commit queue logic, deduplication, and stats.json generator
 │   ├── readme/             # README table and markdown index generators
-│   ├── storage/            # Typed abstractions over chrome.storage.local
-│   ├── store/              # Global state managed via Zustand
+│   ├── storage/            # Typed abstractions over chrome.storage.local with AES-GCM encryption
+│   ├── store/              # Global state managed via Zustand with in-repo state restoration
 │   ├── styles/             # Curated themes and Tailwind styles
-│   └── utils/              # Helper utilities (dynamic versioning, etc.)
+│   └── utils/              # Helper utilities (languages, LRU cache, crypto, etc.)
 ├── README.md               # Repository overview and guide
+├── document.md             # Developer and architecture technical manual
 └── vite.config.ts          # Vite build configuration
 ```

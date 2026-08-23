@@ -45,8 +45,8 @@ CodeSync is a lightweight and modern browser extension that automatically syncs 
 
 * **⚡ Instant Sync (<10ms Enqueue)**: Captures accepted solutions immediately on submission.
 * **🕒 Authentic Historical Timestamps**: Historical solves committed to GitHub reflect their original timestamp on your contribution graph.
-* **🌐 Multi-Platform Ready**: Support for LeetCode, Codeforces, HackerRank, and GeeksforGeeks.
-* **📂 Custom Repository Layouts**: Choose between Flat (`{slug}/`), Platform (`{platform}/{slug}/`), or Difficulty (`{platform}/{difficulty}/{slug}/`) folders.
+* **🌐 Multi-Platform Ready**: Support for LeetCode, Codeforces, HackerRank, GeeksforGeeks, and CodeChef.
+* **📂 Custom Repository Layouts**: Group solutions by Difficulty (`{platform}/{difficulty}/{slug}/` by default), Platform, or Flat Root.
 * **📥 Pending Commit Queue**: Review, manage, or sync submissions in bulk whenever you want.
 * **🔄 Smart Deduplication**: Automatically updates existing solutions when re-solving problems.
 * **🎨 15+ Aesthetic Themes**: Dark mode themes including AMOLED, Dracula, Tokyo Night, Cyberpunk, and Matrix.

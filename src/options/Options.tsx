@@ -488,9 +488,9 @@ export const Options: React.FC = () => {
               >
                 <div className="flex flex-col items-start gap-0.5">
                   <span className="font-bold flex items-center gap-2">
-                    <span>{LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'flat'))?.name || 'Flat Root'}</span>
+                    <span>{LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'difficulty'))?.name || 'Difficulty Grouped'}</span>
                     <code className="text-[10px] px-1.5 py-0.5 rounded border opacity-75 font-mono" style={{ borderColor: activeTheme.border, color: activeTheme.accent }}>
-                      {LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'flat'))?.template || '{problem_slug}/'}
+                      {LAYOUT_OPTIONS.find(o => o.id === (store.folderLayout || 'difficulty'))?.template || '{platform}/{difficulty}/{slug}/'}
                     </code>
                   </span>
                 </div>

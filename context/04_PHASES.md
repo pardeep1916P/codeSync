@@ -30,9 +30,15 @@ Phase 5 (Completed)
 - High-Performance O(1) LRU Caching and Question Metadata Pre-caching (<10ms enqueue)
 - Interactive Repository Structure Layout Dropdown (Flat, Platform-Namespaced, Difficulty-Grouped)
 
-Phase 6
-- Deep platform DOM & network scraper extensions for Codeforces & HackerRank live sessions
-- Multi-platform dashboard stats aggregator
+Phase 6 (Completed)
+- CodeChef Platform Adapter (`codechef.com`) with rating & difficulty normalizer
+- Default Repository Structure Layout updated to Difficulty Grouped (`{platform}/{difficulty}/{problem_slug}/`)
+- Cross-Device In-Repository Preference Synchronization (`codesync_state` in `stats.json`)
+- Automated Microsoft Edge Add-ons CI/CD store release deployment
 
 Phase 7
+- Deep platform DOM & network scraper extensions for Codeforces, HackerRank & CodeChef live sessions
+- Multi-platform dashboard stats aggregator
+
+Phase 8
 - AI insights, streak analytics, roadmap tracking

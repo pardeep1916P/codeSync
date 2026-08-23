@@ -4,6 +4,7 @@ import { ReadmeGenerator } from '../readme';
 import { storage } from '../storage';
 import { updateReadmeTable, computeGitSha } from './readmeTable';
 import { getFileExtension } from '../utils/languages';
+import { getLocalStorage } from '../utils/chrome';
 
 export class CommitQueue {
   private isProcessing = false;
@@ -121,7 +122,12 @@ export class CommitQueue {
       const context = await client.fetchSyncContext(repoFullName);
 
       let workingReadme = context.rootReadmeContent;
-      let workingStats: { shas: Record<string, Record<string, string>>; solved: number } = {
+      interface StatsData {
+        shas: Record<string, Record<string, string>>;
+        solved: number;
+        codesync_state?: string;
+      }
+      let workingStats: StatsData = {
         shas: {},
         solved: 0,
       };
@@ -161,7 +167,7 @@ export class CommitQueue {
       for (const submission of validSubmissions) {
         const problem = submission.problem;
         const fileExtension = this.getFileExtension(submission.language);
-        const layout = settings.folderLayout || 'flat';
+        const layout = settings.folderLayout || 'difficulty';
         const platform = submission.platform || problem.platform || 'leetcode';
         let problemFolder = `${problem.slug}`;
         if (layout === 'platform') {
@@ -200,6 +206,25 @@ export class CommitQueue {
         const rootReadmeSha = await computeGitSha(finalReadme);
         workingStats.shas["README.md"] = { "": rootReadmeSha };
         workingStats.solved = Object.keys(workingStats.shas).filter(k => k !== 'README.md' && k !== 'stats.json').length;
+
+        const themeData = await getLocalStorage('themeId');
+        const activeThemeId = (themeData as { themeId?: string }).themeId || settings.theme || 'amoled';
+
+        const statePayload = {
+          layout: settings.folderLayout || 'difficulty',
+          syncOnAccept: settings.syncOnAccept ?? true,
+          syncHistoricalOnView: settings.syncHistoricalOnView ?? false,
+          desktopNotifications: settings.desktopNotifications ?? false,
+          theme: activeThemeId,
+        };
+        try {
+          const encoded = typeof btoa !== 'undefined' 
+            ? btoa(JSON.stringify(statePayload)) 
+            : Buffer.from(JSON.stringify(statePayload)).toString('base64');
+          workingStats.codesync_state = `cs:${encoded}`;
+        } catch {
+          // ignore encoding failure fallback
+        }
 
         workingStats.shas["stats.json"] = { "": "" };
         let statsStr = JSON.stringify(workingStats, null, 2);

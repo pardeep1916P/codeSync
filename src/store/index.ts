@@ -7,20 +7,61 @@ import { getLocalStorage, setLocalStorage, removeLocalStorage, sendRuntimeMessag
 
 let isListenerRegistered = false;
 
-async function fetchRepoSolvedCount(client: GitHubClient, repoFullName: string): Promise<number> {
+interface RepoStatsResult {
+  solved: number;
+  settings?: Partial<UserSettings>;
+}
+
+export function parseRepoCodesyncState(stats: Record<string, unknown> | null | undefined): Partial<UserSettings> | null {
+  if (!stats) return null;
+  const rawConfig = stats.config as { layout?: UserSettings['folderLayout'] } | undefined;
+  const stateStr = (typeof stats.codesync_state === 'string' ? stats.codesync_state : null) || rawConfig?.layout;
+  if (!stateStr) return null;
+
+  if (typeof stateStr === 'string' && stateStr.startsWith('cs:')) {
+    try {
+      const b64 = stateStr.slice(3);
+      const jsonStr = typeof atob !== 'undefined' ? atob(b64) : Buffer.from(b64, 'base64').toString('utf8');
+      const parsed = JSON.parse(jsonStr);
+      const result: Partial<UserSettings> = {};
+      if (parsed.layout) result.folderLayout = parsed.layout;
+      if (typeof parsed.syncOnAccept === 'boolean') result.syncOnAccept = parsed.syncOnAccept;
+      if (typeof parsed.syncHistoricalOnView === 'boolean') result.syncHistoricalOnView = parsed.syncHistoricalOnView;
+      if (typeof parsed.desktopNotifications === 'boolean') result.desktopNotifications = parsed.desktopNotifications;
+      if (parsed.theme && typeof parsed.theme === 'string') result.theme = parsed.theme;
+      return result;
+    } catch {
+      return null;
+    }
+  }
+
+  // Fallback for raw config
+  if (rawConfig?.layout) {
+    return { folderLayout: rawConfig.layout };
+  }
+
+  return null;
+}
+
+async function fetchRepoSolvedCount(client: GitHubClient, repoFullName: string): Promise<RepoStatsResult> {
   try {
     const statsFile = await client.getFileContent(repoFullName, 'stats.json');
     if (statsFile) {
       const stats = JSON.parse(statsFile.content);
+      const solved = typeof stats.solved === 'number' ? stats.solved : 0;
       if (typeof stats.solved === 'number') {
         await setLocalStorage({ codesync_solved_count: stats.solved });
-        return stats.solved;
       }
+      const repoSettings = parseRepoCodesyncState(stats);
+      if (repoSettings?.theme) {
+        await setLocalStorage({ themeId: repoSettings.theme });
+      }
+      return { solved, settings: repoSettings || undefined };
     }
   } catch {
     // stats.json may not exist yet
   }
-  return 0;
+  return { solved: 0 };
 }
 
 interface AppState extends UserSettings {
@@ -57,7 +98,7 @@ export const useStore = create<AppState>((set, get) => ({
   syncOnAccept: true,
   syncHistoricalOnView: false,
   desktopNotifications: false,
-  folderLayout: 'flat',
+  folderLayout: 'difficulty',
   commitQueue: [],
   isLoading: true,
   isSyncing: false,
@@ -142,8 +183,12 @@ export const useStore = create<AppState>((set, get) => ({
           set({ user, repositories, error: null });
 
           if (settings.selectedRepo) {
-            const solved = await fetchRepoSolvedCount(client, settings.selectedRepo);
-            if (solved > 0) set({ solvedCount: solved });
+            const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
+            if (statsResult.solved > 0) set({ solvedCount: statsResult.solved });
+            if (statsResult.settings && Object.keys(statsResult.settings).length > 0) {
+              await storage.updateSettings(statsResult.settings);
+              set({ ...statsResult.settings });
+            }
           }
         } catch (err) {
           console.warn('[CodeSync:Store] Phase 2 GitHub API error:', err);
@@ -175,9 +220,15 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       let solvedCount = 0;
+      let repoSettings: Partial<UserSettings> | undefined;
       const settings = await storage.getSettings();
       if (settings.selectedRepo) {
-        solvedCount = await fetchRepoSolvedCount(client, settings.selectedRepo);
+        const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
+        solvedCount = statsResult.solved;
+        repoSettings = statsResult.settings;
+        if (repoSettings && Object.keys(repoSettings).length > 0) {
+          await storage.updateSettings(repoSettings);
+        }
       }
 
       await setLocalStorage({ cached_user: user, cached_repos: repositories, codesync_solved_count: solvedCount });
@@ -188,6 +239,7 @@ export const useStore = create<AppState>((set, get) => ({
         user,
         repositories,
         solvedCount,
+        ...(repoSettings || {}),
         isLoading: false,
         error: null,
       });
@@ -242,11 +294,17 @@ export const useStore = create<AppState>((set, get) => ({
     set({ selectedRepo: repoFullName, isLoading: true });
 
     let solvedCount = 0;
+    let repoSettings: Partial<UserSettings> | undefined;
     const token = get().githubToken;
     if (token) {
       try {
         const client = new GitHubClient(token);
-        solvedCount = await fetchRepoSolvedCount(client, repoFullName);
+        const statsResult = await fetchRepoSolvedCount(client, repoFullName);
+        solvedCount = statsResult.solved;
+        repoSettings = statsResult.settings;
+        if (repoSettings && Object.keys(repoSettings).length > 0) {
+          await storage.updateSettings(repoSettings);
+        }
       } catch (e) {
         if (isAuthError(e)) {
           await get().logout();
@@ -255,7 +313,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
 
-    set({ solvedCount, isLoading: false });
+    set({ solvedCount, ...(repoSettings || {}), isLoading: false });
   },
 
   setSyncOnAccept: async (value: boolean) => {
@@ -330,12 +388,25 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       let solved = get().solvedCount;
+      let repoSettings: Partial<UserSettings> | undefined;
       const settings = await storage.getSettings();
       if (settings.selectedRepo) {
-        solved = await fetchRepoSolvedCount(client, settings.selectedRepo);
+        const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
+        solved = statsResult.solved;
+        repoSettings = statsResult.settings;
+        if (repoSettings && Object.keys(repoSettings).length > 0) {
+          await storage.updateSettings(repoSettings);
+        }
       }
 
-      set({ user, repositories, githubUser: user.login, solvedCount: solved, error: null });
+      set({
+        user,
+        repositories,
+        githubUser: user.login,
+        solvedCount: solved,
+        ...(repoSettings || {}),
+        error: null
+      });
     } catch (e) {
       if (isAuthError(e)) {
         await get().logout();

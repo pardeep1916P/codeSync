@@ -4,6 +4,7 @@ import { LeetCodeAdapter } from '../leetcode';
 import { CodeforcesAdapter } from '../codeforces';
 import { HackerRankAdapter } from '../hackerrank';
 import { GeeksforGeeksAdapter } from '../geeksforgeeks';
+import { CodeChefAdapter } from '../codechef';
 
 describe('Platform Registry & Adapters', () => {
   it('identifies LeetCode URLs correctly', () => {
@@ -34,6 +35,16 @@ describe('Platform Registry & Adapters', () => {
     expect(adapter?.id).toBe('geeksforgeeks');
   });
 
+  it('identifies CodeChef URLs correctly', () => {
+    const adapter = getPlatformForUrl('https://www.codechef.com/problems/FLOW001');
+    expect(adapter).toBeInstanceOf(CodeChefAdapter);
+    expect(adapter?.id).toBe('codechef');
+    expect(adapter?.getFileExtension('C++17')).toBe('cpp');
+    expect((adapter as CodeChefAdapter).normalizeDifficulty(1300)).toBe('Easy');
+    expect((adapter as CodeChefAdapter).normalizeDifficulty(1600)).toBe('Medium');
+    expect((adapter as CodeChefAdapter).normalizeDifficulty(2100)).toBe('Hard');
+  });
+
   it('returns null for unknown domain', () => {
     const adapter = getPlatformForUrl('https://example.com/problems/test');
     expect(adapter).toBeNull();
@@ -41,11 +52,12 @@ describe('Platform Registry & Adapters', () => {
 
   it('lists all registered platforms', () => {
     const platforms = getAllPlatforms();
-    expect(platforms.length).toBeGreaterThanOrEqual(4);
+    expect(platforms.length).toBeGreaterThanOrEqual(5);
     const ids = platforms.map(p => p.id);
     expect(ids).toContain('leetcode');
     expect(ids).toContain('codeforces');
     expect(ids).toContain('hackerrank');
     expect(ids).toContain('geeksforgeeks');
+    expect(ids).toContain('codechef');
   });
 });

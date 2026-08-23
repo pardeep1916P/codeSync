@@ -11,6 +11,7 @@ export interface UserSettings {
   syncHistoricalOnView: boolean;
   desktopNotifications: boolean;
   folderLayout: FolderLayout;
+  theme?: string;
   commitQueue: string[]; // Submission IDs pending sync
 }
 
@@ -21,7 +22,8 @@ const DEFAULT_SETTINGS: UserSettings = {
   syncOnAccept: true,
   syncHistoricalOnView: false,
   desktopNotifications: false,
-  folderLayout: 'flat',
+  folderLayout: 'difficulty',
+  theme: 'amoled',
   commitQueue: [],
 };
 
