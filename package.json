@@ -1,6 +1,6 @@
 {
   "name": "codesync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Synchronize accepted coding problems to GitHub",
   "type": "module",
   "scripts": {

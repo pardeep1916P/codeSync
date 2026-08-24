@@ -38,11 +38,13 @@ export function updateReadmeTable(
   existingContent: string | null,
   problem: Problem,
   submission: Submission,
-  repoName?: string
+  repoName?: string,
+  problemFolder?: string
 ): string {
   const platform = getPlatformName(problem.url);
   const fileExt = getFileExtension(submission.language);
-  const solutionPath = `./${problem.slug}/${problem.slug}.${fileExt}`;
+  const basePath = problemFolder ? problemFolder.replace(/^\.?\/*/, '') : problem.slug;
+  const solutionPath = `./${basePath}/${problem.slug}.${fileExt}`;
   const problemUrl = problem.url || `https://leetcode.com/problems/${problem.slug}/`;
   const langDisplayName = getLanguageDisplayName(submission.language);
   const headerTitle = repoName ? (repoName.split('/').pop() || repoName) : 'LeetCode Solutions';

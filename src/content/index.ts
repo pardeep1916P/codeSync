@@ -235,6 +235,8 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
 
 // ── Main entry point ───────────────────────────────────────────────────────
 function initContentScript() {
+  logToBackground('CodeSync:Content', '🚀 Content script initialized on URL:', window.location.href);
+
   // Clean up legacy persistent processed IDs so historical sync is never blocked
   try {
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {

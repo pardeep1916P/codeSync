@@ -142,14 +142,16 @@ export class CommitQueue {
       }
 
       // Load and sort all pending submissions chronologically (oldest to newest)
+      // Load all pending submissions in parallel
+      const rawSubmissions = await Promise.all(pendingIds.map(id => this.getSubmissionData(id)));
       const validSubmissions: Submission[] = [];
-      for (const submissionId of pendingIds) {
-        const submission = await this.getSubmissionData(submissionId);
-        if (!submission) {
-          await this.removeIdFromQueue(submissionId);
-          continue;
+      for (let i = 0; i < pendingIds.length; i++) {
+        const sub = rawSubmissions[i];
+        if (!sub) {
+          await this.removeIdFromQueue(pendingIds[i]);
+        } else {
+          validSubmissions.push(sub);
         }
-        validSubmissions.push(submission);
       }
 
       if (validSubmissions.length === 0) {
@@ -164,7 +166,9 @@ export class CommitQueue {
       const processedIds: string[] = [];
       const problemTitles: string[] = [];
 
-      for (const submission of validSubmissions) {
+      for (let i = 0; i < validSubmissions.length; i++) {
+        const submission = validSubmissions[i];
+        const isLastSubmission = (i === validSubmissions.length - 1);
         const problem = submission.problem;
         const fileExtension = this.getFileExtension(submission.language);
         const layout = settings.folderLayout || 'difficulty';
@@ -181,7 +185,7 @@ export class CommitQueue {
 
         // Generate problem README and update table in memory
         const readmeContent = ReadmeGenerator.generate(problem, submission, null);
-        workingReadme = updateReadmeTable(workingReadme, problem, submission, repoFullName);
+        workingReadme = updateReadmeTable(workingReadme, problem, submission, repoFullName, problemFolder);
 
         // Compute Git SHAs
         const [codeSha, problemReadmeSha] = await Promise.all([
@@ -249,6 +253,11 @@ export class CommitQueue {
           baseCommitSha: currentLatestCommitSha || undefined,
           baseTreeSha: currentBaseTreeSha || undefined,
           authorDate,
+          author: settings.githubUser ? {
+            name: settings.githubUser,
+            email: `${settings.githubUser}@users.noreply.github.com`,
+          } : undefined,
+          updateRef: isLastSubmission,
         });
 
         currentLatestCommitSha = result.commitSha;
@@ -256,15 +265,15 @@ export class CommitQueue {
 
         processedIds.push(submission.id);
         problemTitles.push(problem.title);
-
-        // Update local stats count after each problem
-        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-          await chrome.storage.local.set({ codesync_solved_count: workingStats.solved });
-        }
-
-        // Clean up individual submission data from storage
-        await this.clearSubmissionData(submission.id);
       }
+
+      // Update local stats count once after batch completion
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        await chrome.storage.local.set({ codesync_solved_count: workingStats.solved });
+      }
+
+      // Clean up individual submission data from storage in parallel
+      await Promise.all(processedIds.map(id => this.clearSubmissionData(id)));
 
       // Update remaining queue
       const remainingQueue = (await storage.getSettings()).commitQueue.filter(id => !processedIds.includes(id));

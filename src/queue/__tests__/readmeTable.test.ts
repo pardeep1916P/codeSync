@@ -110,4 +110,18 @@ describe('updateReadmeTable with topic categorization and Git SHA calculation', 
     const result = updateReadmeTable(null, mockProblem, mockSubmission, 'pardeep1916P/DSA');
     expect(result).toContain('# DSA');
   });
+
+  it('should generate correct link paths for all 3 folder layouts', () => {
+    // 1. Flat Root Layout
+    const flatResult = updateReadmeTable(null, mockProblem, mockSubmission, 'chaitanya-pvt/dummy', 'two-sum');
+    expect(flatResult).toContain('[C++](./two-sum/two-sum.cpp)');
+
+    // 2. Platform Namespaced Layout
+    const platformResult = updateReadmeTable(null, mockProblem, mockSubmission, 'chaitanya-pvt/dummy', 'leetcode/two-sum');
+    expect(platformResult).toContain('[C++](./leetcode/two-sum/two-sum.cpp)');
+
+    // 3. Difficulty Grouped Layout
+    const difficultyResult = updateReadmeTable(null, mockProblem, mockSubmission, 'chaitanya-pvt/dummy', 'leetcode/Easy/two-sum');
+    expect(difficultyResult).toContain('[C++](./leetcode/Easy/two-sum/two-sum.cpp)');
+  });
 });

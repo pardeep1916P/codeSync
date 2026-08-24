@@ -185,10 +185,6 @@ export const useStore = create<AppState>((set, get) => ({
           if (settings.selectedRepo) {
             const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
             if (statsResult.solved > 0) set({ solvedCount: statsResult.solved });
-            if (statsResult.settings && Object.keys(statsResult.settings).length > 0) {
-              await storage.updateSettings(statsResult.settings);
-              set({ ...statsResult.settings });
-            }
           }
         } catch (err) {
           console.warn('[CodeSync:Store] Phase 2 GitHub API error:', err);

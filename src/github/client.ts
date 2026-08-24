@@ -63,6 +63,18 @@ export class GitHubClient {
           } catch (_) {
             // Ignore response reading error
           }
+
+          if (response.status === 403 && (bodyText.includes('rate limit exceeded') || response.headers.get('x-ratelimit-remaining') === '0')) {
+            const resetHeader = response.headers.get('x-ratelimit-reset');
+            let resetMsg = '';
+            if (resetHeader) {
+              const resetDate = new Date(parseInt(resetHeader, 10) * 1000);
+              const minutes = Math.max(1, Math.round((resetDate.getTime() - Date.now()) / 60000));
+              resetMsg = ` (resets in ~${minutes} min at ${resetDate.toLocaleTimeString()})`;
+            }
+            throw new Error(`GitHub API rate limit exceeded${resetMsg}. Please wait for reset.`);
+          }
+
           throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}. Response: ${bodyText}`);
         }
 
@@ -392,14 +404,17 @@ export class GitHubClient {
     };
 
     if (payload.authorDate) {
-      let name = 'CodeSync User';
-      let email = 'codesync@users.noreply.github.com';
-      try {
-        const user = await this.getUser();
-        name = user.name || user.login || name;
-        email = user.email || `${user.login}@users.noreply.github.com`;
-      } catch {
-        // Silent fallback
+      let name = payload.author?.name || this.cachedUser?.name || this.cachedUser?.login || 'CodeSync User';
+      let email = payload.author?.email || this.cachedUser?.email || (this.cachedUser ? `${this.cachedUser.login}@users.noreply.github.com` : 'codesync@users.noreply.github.com');
+      
+      if (name === 'CodeSync User') {
+        try {
+          const user = await this.getUser();
+          name = user.name || user.login || name;
+          email = user.email || `${user.login}@users.noreply.github.com`;
+        } catch {
+          // Silent fallback
+        }
       }
       commitParams.author = {
         name,
@@ -422,17 +437,19 @@ export class GitHubClient {
     );
     const newCommitSha = newCommitResponse.sha;
 
-    // Update the branch reference to point to the new commit
-    await this.request(
-      `/repos/${repoFullName}/git/refs/heads/${branch}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({
-          sha: newCommitSha,
-          force: false,
-        }),
-      }
-    );
+    // Update the branch reference to point to the new commit (can be deferred on bulk sync)
+    if (payload.updateRef !== false) {
+      await this.request(
+        `/repos/${repoFullName}/git/refs/heads/${branch}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            sha: newCommitSha,
+            force: false,
+          }),
+        }
+      );
+    }
 
     return { commitSha: newCommitSha, treeSha: newTreeSha, branch };
   }

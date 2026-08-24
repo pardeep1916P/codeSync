@@ -22,20 +22,30 @@ if (!(window as any).__codeSyncInjected) {
       const isGraphQL = url.includes('/graphql') || url.includes('leetcode.com/graphql');
       const isCheck = url.includes('/check/');
       
-      if (isGraphQL || isCheck) {
-        // Clone so we don't consume the body that LeetCode needs
+      const isSubmit = url.includes('/submit') || url.includes('/submit/');
+      
+      if (isGraphQL || isCheck || isSubmit) {
+        interceptorLog(`⚡ Intercepted network request: ${url}`);
+        // Clone so we don't consume the body that the platform needs
         const cloned = response.clone();
         cloned.json().then(function(json) {
+          if (isSubmit && json) {
+            interceptorLog('Submission initiated response:', json);
+            if (json.submission_id) {
+              (window as any).__codeSyncRecentJudgeId = String(json.submission_id);
+              (window as any).__codeSyncRecentJudgeTime = Date.now();
+            }
+          }
 
           if (isCheck && json) {
-            const match = url.match(/submissions\/detail\/(\d+)/);
-            const subId = match ? match[1] : null;
-            const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted';
-            interceptorLog('Intercepted /check/ endpoint. SubId:', subId, 'Accepted:', isAccepted, json);
+            const match = url.match(/submissions\/detail\/(\d+)/) || url.match(/check\/(\d+)/);
+            const subId = match ? match[1] : ((window as any).__codeSyncRecentJudgeId || null);
+            const isAccepted = json.status_code === 10 || json.statusCode === 10 || json.status_msg === 'Accepted' || json.state === 'SUCCESS' && json.status_code === 10;
+            interceptorLog('🔍 Checked judging status. SubId:', subId, 'isAccepted:', isAccepted, json);
             if (subId && isAccepted) {
               (window as any).__codeSyncRecentJudgeId = subId;
               (window as any).__codeSyncRecentJudgeTime = Date.now();
-              interceptorLog('Posting CODESYNC_JUDGING_ACCEPTED for subId:', subId);
+              interceptorLog('📢 Posting CODESYNC_JUDGING_ACCEPTED for subId:', subId);
               window.postMessage({
                 type: 'CODESYNC_JUDGING_ACCEPTED',
                 payload: {

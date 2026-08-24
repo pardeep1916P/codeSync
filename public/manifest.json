@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CodeSync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Synchronize accepted coding problems to GitHub",
   "icons": {
     "16": "icon-16.png",
@@ -19,6 +19,7 @@
   "host_permissions": [
     "https://*.leetcode.com/*",
     "https://*.leetcode.cn/*",
+    "https://*.codechef.com/*",
     "https://api.github.com/*",
     "https://github.com/*"
   ],
@@ -41,7 +42,8 @@
     {
       "matches": [
         "https://*.leetcode.com/*",
-        "https://*.leetcode.cn/*"
+        "https://*.leetcode.cn/*",
+        "https://*.codechef.com/*"
       ],
       "js": [
         "interceptor.js"
@@ -52,7 +54,8 @@
     {
       "matches": [
         "https://*.leetcode.com/*",
-        "https://*.leetcode.cn/*"
+        "https://*.leetcode.cn/*",
+        "https://*.codechef.com/*"
       ],
       "js": [
         "content.js"
@@ -67,7 +70,8 @@
       ],
       "matches": [
         "https://*.leetcode.com/*",
-        "https://*.leetcode.cn/*"
+        "https://*.leetcode.cn/*",
+        "https://*.codechef.com/*"
       ]
     }
   ]

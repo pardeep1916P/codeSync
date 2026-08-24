@@ -96,9 +96,6 @@ export const Options: React.FC = () => {
     }
 
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      if (changes.settings) {
-        initialize();
-      }
       if (changes.themeId) {
         setThemeId(changes.themeId.newValue);
       }

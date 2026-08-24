@@ -59,11 +59,6 @@ export const Popup: React.FC = () => {
     }
 
     const handleStorageChange = (changes: { [key: string]: chrome.storage.StorageChange }) => {
-      console.log('[CodeSync:Popup] storage.onChanged event in Popup:', Object.keys(changes));
-      if (changes.settings) {
-        console.log('[CodeSync:Popup] Settings changed, re-initializing store');
-        initialize();
-      }
       if (changes.themeId) {
         setThemeId(changes.themeId.newValue);
       }

@@ -21,8 +21,13 @@ export interface GitCommitPayload {
   }[];
   branch?: string;
   authorDate?: string;
+  author?: {
+    name?: string;
+    email?: string;
+  };
   baseCommitSha?: string;
   baseTreeSha?: string;
+  updateRef?: boolean;
 }
 
 export interface CommitResult {

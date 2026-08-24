@@ -1,8 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export function logToBackground(prefix: string, ...args: any[]) {
-  if (import.meta.env.PROD && (import.meta as any).env?.VITE_ENABLE_LOGS !== 'true') {
-    return;
-  }
   console.log(`[${prefix}]`, ...args);
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
