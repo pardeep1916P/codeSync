@@ -8,12 +8,14 @@ import { RepoSelector } from './components/RepoSelector';
 import { SyncControl } from './components/SyncControl';
 import { AuthForm } from './components/AuthForm';
 import { ConfirmModal } from './components/ConfirmModal';
+import { WhatsNewModal } from './components/WhatsNewModal';
+import { getExtensionVersion } from '../utils/version';
 import { Footer } from './components/Footer';
 import { isAuthError } from '../github/client';
 
 export const Popup: React.FC = () => {
   const store = useStore();
-  const { initialize } = store;
+  const { initialize, showWhatsNew, dismissWhatsNew } = store;
   
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isRepoDropdownOpen, setIsRepoDropdownOpen] = useState(false);
@@ -361,6 +363,14 @@ export const Popup: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Post-Upgrade What's New Modal */}
+      <WhatsNewModal
+        isOpen={showWhatsNew}
+        onClose={dismissWhatsNew}
+        activeTheme={activeTheme}
+        version={getExtensionVersion()}
+      />
 
       {/* Custom Confirmation Modal */}
       <ConfirmModal

@@ -4,6 +4,7 @@ import { GitHubClient, isAuthError, GitHubAuthError } from '../github/client';
 import { GitHubRepo, GitHubUser } from '../github/types';
 import { GitHubOAuth } from '../github/oauth';
 import { getLocalStorage, setLocalStorage, removeLocalStorage, sendRuntimeMessage, isChromeStorageAvailable } from '../utils/chrome';
+import { getExtensionVersion } from '../utils/version';
 
 let isListenerRegistered = false;
 
@@ -73,6 +74,8 @@ interface AppState extends UserSettings {
   solvedCount: number;
   updateInfo: { version: string } | null;
   isCheckingUpdate: boolean;
+  showWhatsNew: boolean;
+  dismissWhatsNew: () => Promise<void>;
 
   // Actions
   initialize: () => Promise<void>;
@@ -108,6 +111,7 @@ export const useStore = create<AppState>((set, get) => ({
   solvedCount: 0,
   updateInfo: null,
   isCheckingUpdate: false,
+  showWhatsNew: false,
 
   initialize: async () => {
     try {
@@ -121,10 +125,16 @@ export const useStore = create<AppState>((set, get) => ({
       const cachedSolvedCount = typeof cached.codesync_solved_count === 'number' ? cached.codesync_solved_count : 0;
       const cachedIsSyncing = typeof cached.codesync_is_syncing === 'boolean' ? cached.codesync_is_syncing : false;
 
+      const currentVersion = getExtensionVersion();
+      const shouldShowWhatsNew = settings.lastSeenVersion !== null
+        ? settings.lastSeenVersion !== currentVersion
+        : Boolean(settings.githubUser || settings.selectedRepo);
+
       // Immediately show UI with cached data (no loading flash)
       set({
         ...settings,
         updateInfo,
+        showWhatsNew: shouldShowWhatsNew,
         user: cachedUser,
         repositories: cachedRepos,
         solvedCount: cachedSolvedCount,
@@ -428,6 +438,12 @@ export const useStore = create<AppState>((set, get) => ({
       set({ isCheckingUpdate: false });
       return { status: 'no_update' };
     }
+  },
+
+  dismissWhatsNew: async () => {
+    const currentVersion = getExtensionVersion();
+    await storage.updateSettings({ lastSeenVersion: currentVersion });
+    set({ showWhatsNew: false, lastSeenVersion: currentVersion });
   },
 
   applyUpdate: () => {
