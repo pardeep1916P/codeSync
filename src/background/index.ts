@@ -37,7 +37,12 @@ chrome.runtime.onInstalled.addListener(async () => {
         '*://*.leetcode.com/*',
         '*://leetcode.com/*',
         '*://*.leetcode.cn/*',
-        '*://leetcode.cn/*'
+        '*://leetcode.cn/*',
+        '*://*.codechef.com/*',
+        '*://*.codeforces.com/*',
+        '*://*.codeforces.net/*',
+        '*://*.hackerrank.com/*',
+        '*://*.geeksforgeeks.org/*'
       ]
     });
     for (const tab of tabs) {

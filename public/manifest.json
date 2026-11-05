@@ -20,6 +20,10 @@
     "https://*.leetcode.com/*",
     "https://*.leetcode.cn/*",
     "https://*.codechef.com/*",
+    "https://*.codeforces.com/*",
+    "https://*.codeforces.net/*",
+    "https://*.hackerrank.com/*",
+    "https://*.geeksforgeeks.org/*",
     "https://api.github.com/*",
     "https://github.com/*"
   ],
@@ -43,7 +47,11 @@
       "matches": [
         "https://*.leetcode.com/*",
         "https://*.leetcode.cn/*",
-        "https://*.codechef.com/*"
+        "https://*.codechef.com/*",
+        "https://*.codeforces.com/*",
+        "https://*.codeforces.net/*",
+        "https://*.hackerrank.com/*",
+        "https://*.geeksforgeeks.org/*"
       ],
       "js": [
         "interceptor.js"
@@ -55,7 +63,11 @@
       "matches": [
         "https://*.leetcode.com/*",
         "https://*.leetcode.cn/*",
-        "https://*.codechef.com/*"
+        "https://*.codechef.com/*",
+        "https://*.codeforces.com/*",
+        "https://*.codeforces.net/*",
+        "https://*.hackerrank.com/*",
+        "https://*.geeksforgeeks.org/*"
       ],
       "js": [
         "content.js"
@@ -71,7 +83,11 @@
       "matches": [
         "https://*.leetcode.com/*",
         "https://*.leetcode.cn/*",
-        "https://*.codechef.com/*"
+        "https://*.codechef.com/*",
+        "https://*.codeforces.com/*",
+        "https://*.codeforces.net/*",
+        "https://*.hackerrank.com/*",
+        "https://*.geeksforgeeks.org/*"
       ]
     }
   ]
