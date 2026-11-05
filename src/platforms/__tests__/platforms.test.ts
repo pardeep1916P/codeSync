@@ -20,6 +20,9 @@ describe('Platform Registry & Adapters', () => {
     expect(adapter).toBeInstanceOf(CodeforcesAdapter);
     expect(adapter?.id).toBe('codeforces');
     expect(adapter?.getFileExtension('GNU C++20')).toBe('cpp');
+    expect((adapter as CodeforcesAdapter).normalizeDifficulty(1200)).toBe('Easy');
+    expect((adapter as CodeforcesAdapter).normalizeDifficulty(1600)).toBe('Medium');
+    expect((adapter as CodeforcesAdapter).normalizeDifficulty(2100)).toBe('Hard');
   });
 
   it('identifies HackerRank URLs correctly', () => {

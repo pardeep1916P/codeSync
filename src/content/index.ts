@@ -1,25 +1,25 @@
 /**
  * CodeSync Content Script
  * 
- * Intercepts LeetCode's GraphQL network responses to reliably detect
- * accepted submissions. This is far more robust than DOM scraping,
- * which breaks every time LeetCode updates their UI class names.
+ * Intercepts platform network responses (LeetCode, Codeforces, CodeChef)
+ * to reliably detect accepted submissions without relying exclusively on brittle DOM class names.
  * 
  * Flow:
- *   1. Inject a page-level script that monkey-patches window.fetch
- *   2. When the patched fetch sees a response from /graphql containing
- *      submission data with status "Accepted", it posts a message to
- *      the content script via window.postMessage.
- *   3. The content script receives the message and forwards it to the
- *      background service worker via chrome.runtime.sendMessage.
+ *   1. Inject a page-level script (interceptor.js) that intercepts fetch & XHR requests.
+ *   2. When an accepted submission is confirmed by the platform's judging API,
+ *      it posts a typed message via window.postMessage.
+ *   3. The content script receives the event, normalizes the submission metadata,
+ *      deduplicates, and forwards to the background service worker via ENQUEUE_SUBMISSION.
  */
-
-// The network interceptor code is compiled to interceptor.js and injected via script.src
-// to comply with strict Content Security Policies on LeetCode.
 
 import { htmlToMarkdown } from '../utils/html';
 import { logToBackground, warnToBackground } from '../utils/logger';
 import { LRUCache } from '../utils/lru';
+import { CodeforcesAdapter } from '../platforms/codeforces';
+import { CodeChefAdapter } from '../platforms/codechef';
+
+const codeforcesAdapter = new CodeforcesAdapter();
+const codeChefAdapter = new CodeChefAdapter();
 
 interface QuestionMetadata {
   questionId: string;
@@ -48,7 +48,38 @@ function isContextInvalidated(): boolean {
   }
 }
 
-// ── Fetch full submission details when we only have an ID ──────────────────
+function extractPageCode(): string {
+  try {
+    // 1. Monaco Editor (CodeChef / modern online judges)
+    const monacoLines = document.querySelectorAll('.monaco-editor .view-line');
+    if (monacoLines.length > 0) {
+      return Array.from(monacoLines).map(l => l.textContent || '').join('\n');
+    }
+    // 2. Ace Editor (Codeforces / older CodeChef)
+    const aceContent = document.querySelector('.ace_content');
+    if (aceContent) {
+      const aceLines = aceContent.querySelectorAll('.ace_line');
+      if (aceLines.length > 0) {
+        return Array.from(aceLines).map(l => l.textContent || '').join('\n');
+      }
+    }
+    // 3. Textarea / SourceCode inputs
+    const sourceTextarea = document.querySelector('textarea#sourceCodeText, textarea[name="source"], #source-code') as HTMLTextAreaElement | null;
+    if (sourceTextarea && sourceTextarea.value) {
+      return sourceTextarea.value;
+    }
+    // 4. Pre / Code blocks
+    const preCode = document.querySelector('pre.program-source, pre#program-source, pre code');
+    if (preCode && preCode.textContent) {
+      return preCode.textContent;
+    }
+  } catch {
+    // Ignore extraction errors
+  }
+  return '';
+}
+
+// ── Fetch full LeetCode submission details when we only have an ID ─────────
 async function fetchSubmissionDetails(submissionId: string) {
   const query = `
     query submissionDetails($submissionId: Int!) {
@@ -98,7 +129,7 @@ function getQuestionSlug(): string {
   return '';
 }
 
-// ── Build and send submission to background ────────────────────────────────
+// ── Build and send LeetCode submission to background ───────────────────────
 interface SubmissionData {
   submissionId: string;
   code: string;
@@ -208,6 +239,7 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
 
   const submission = {
     id: subId,
+    platform: 'leetcode' as const,
     problem: {
       id: question.questionId,
       title: question.title,
@@ -216,6 +248,7 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
       description: htmlToMarkdown(question.content),
       tags: (question.topicTags || []).map((t: { name: string }) => t.name),
       url: `https://leetcode.com/problems/${question.titleSlug || getQuestionSlug()}/`,
+      platform: 'leetcode' as const,
     },
     language: lang,
     code: code,
@@ -229,6 +262,140 @@ async function handleAcceptedSubmission(data: SubmissionData, isHistoricalEvent 
     { action: 'ENQUEUE_SUBMISSION', payload: submission },
     (response) => {
       logToBackground('CodeSync:Content', 'Background responded to ENQUEUE_SUBMISSION:', response);
+    }
+  );
+}
+
+// ── Codeforces Submission Handler ──────────────────────────────────────────
+interface CodeforcesPayload {
+  submissionId: string;
+  contestId: string;
+  index: string;
+  problemName?: string;
+  lang?: string;
+  rating?: number | string;
+  timestamp?: number;
+}
+
+async function handleCodeforcesSubmission(data: CodeforcesPayload) {
+  if (isContextInvalidated()) return;
+  const rawSubId = data.submissionId || `${Date.now()}`;
+  const subId = `cf_${rawSubId}`;
+
+  logToBackground('CodeSync:Content', 'Handling Codeforces submission:', subId, data.contestId, data.index);
+
+  if (processedSubmissionIds.has(subId)) {
+    logToBackground('CodeSync:Content', 'Codeforces subId already processed:', subId);
+    return;
+  }
+  trackSubmissionId(subId);
+
+  const titleEl = document.querySelector('.problem-statement .header .title');
+  const domTitle = titleEl ? titleEl.textContent?.replace(/^[A-Z0-9]+\.\s*/, '').trim() : '';
+  const problemTitle = data.problemName || domTitle || `Problem ${data.contestId}${data.index}`;
+
+  const statementEl = document.querySelector('.problem-statement');
+  const description = statementEl
+    ? htmlToMarkdown(statementEl.innerHTML)
+    : `# ${problemTitle}\n\n[Codeforces Problem Link](https://codeforces.com/contest/${data.contestId}/problem/${data.index})`;
+
+  const tagElements = document.querySelectorAll('.tag-box');
+  const tags = tagElements.length > 0
+    ? Array.from(tagElements).map(el => el.textContent?.trim() || '').filter(Boolean)
+    : ['Codeforces'];
+
+  const difficulty = codeforcesAdapter.normalizeDifficulty(data.rating);
+  const code = extractPageCode() || `// Codeforces Submission #${rawSubId}\n// Problem: ${problemTitle}\n// Contest: ${data.contestId}\n`;
+  const lang = data.lang || 'cpp';
+  const timestamp = (data.timestamp || Math.floor(Date.now() / 1000)) * 1000;
+
+  const submission = {
+    id: subId,
+    platform: 'codeforces' as const,
+    problem: {
+      id: `${data.contestId}${data.index}`,
+      title: problemTitle,
+      slug: `codeforces-${data.contestId}-${data.index.toLowerCase()}`,
+      difficulty,
+      description,
+      tags,
+      url: `https://codeforces.com/contest/${data.contestId}/problem/${data.index}`,
+      platform: 'codeforces' as const,
+    },
+    language: lang,
+    code,
+    timestamp,
+    status: 'ACCEPTED' as const,
+  };
+
+  logToBackground('CodeSync:Content', 'Dispatching Codeforces ENQUEUE_SUBMISSION:', submission.id, problemTitle);
+  chrome.runtime.sendMessage(
+    { action: 'ENQUEUE_SUBMISSION', payload: submission },
+    (response) => {
+      logToBackground('CodeSync:Content', 'Background responded to Codeforces submission:', response);
+    }
+  );
+}
+
+// ── CodeChef Submission Handler ────────────────────────────────────────────
+interface CodeChefPayload {
+  submissionId: string;
+  problemCode: string;
+  lang?: string;
+  timestamp?: number;
+}
+
+async function handleCodeChefSubmission(data: CodeChefPayload) {
+  if (isContextInvalidated()) return;
+  const rawSubId = data.submissionId || `${Date.now()}`;
+  const subId = `cc_${rawSubId}`;
+
+  logToBackground('CodeSync:Content', 'Handling CodeChef submission:', subId, data.problemCode);
+
+  if (processedSubmissionIds.has(subId)) {
+    logToBackground('CodeSync:Content', 'CodeChef subId already processed:', subId);
+    return;
+  }
+  trackSubmissionId(subId);
+
+  const headingEl = document.querySelector('h1, .problem-code, .problem-title');
+  const domTitle = headingEl ? headingEl.textContent?.trim() : '';
+  const problemTitle = domTitle || data.problemCode;
+
+  const statementEl = document.querySelector('.problem-statement, #problem-statement, .problem-description');
+  const description = statementEl
+    ? htmlToMarkdown(statementEl.innerHTML)
+    : `# ${problemTitle}\n\n[CodeChef Problem Link](https://www.codechef.com/problems/${data.problemCode})`;
+
+  const difficulty = codeChefAdapter.normalizeDifficulty();
+  const code = extractPageCode() || `// CodeChef Submission #${rawSubId}\n// Problem: ${problemTitle}\n`;
+  const lang = data.lang || 'cpp';
+  const timestamp = (data.timestamp || Math.floor(Date.now() / 1000)) * 1000;
+
+  const submission = {
+    id: subId,
+    platform: 'codechef' as const,
+    problem: {
+      id: data.problemCode,
+      title: problemTitle,
+      slug: `codechef-${data.problemCode.toLowerCase()}`,
+      difficulty,
+      description,
+      tags: ['CodeChef'],
+      url: `https://www.codechef.com/problems/${data.problemCode}`,
+      platform: 'codechef' as const,
+    },
+    language: lang,
+    code,
+    timestamp,
+    status: 'ACCEPTED' as const,
+  };
+
+  logToBackground('CodeSync:Content', 'Dispatching CodeChef ENQUEUE_SUBMISSION:', submission.id, problemTitle);
+  chrome.runtime.sendMessage(
+    { action: 'ENQUEUE_SUBMISSION', payload: submission },
+    (response) => {
+      logToBackground('CodeSync:Content', 'Background responded to CodeChef submission:', response);
     }
   );
 }
@@ -309,12 +476,19 @@ function initContentScript() {
         }, true);
       }
     }
+
+    if (event.data?.type === 'CODESYNC_CODEFORCES_ACCEPTED' && event.data.payload) {
+      await handleCodeforcesSubmission(event.data.payload);
+    }
+
+    if (event.data?.type === 'CODESYNC_CODECHEF_ACCEPTED' && event.data.payload) {
+      await handleCodeChefSubmission(event.data.payload);
+    }
   };
 
   window.addEventListener('message', messageListener);
 
   // ── Fallback: DOM-based detection (runs as backup every 5s) ────────────
-  // This covers edge cases where the network interception might miss something.
   const intervalId = setInterval(async () => {
     if (isContextInvalidated()) {
       clearInterval(intervalId);
@@ -324,39 +498,58 @@ function initContentScript() {
       return;
     }
     try {
-      const successSelectors = [
-        '[data-e2e-locator="submission-result"]',
-        '.text-green-s',
-        '.text-sd-success-500',
-        'span[class*="success"]',
-        'div[data-e2e-locator="submission-result"]',
-      ];
+      const hostname = window.location.hostname;
 
-      let isAccepted = false;
-      for (const selector of successSelectors) {
-        const el = document.querySelector(selector);
-        if (el) {
-          const text = el.textContent || '';
-          if (text.includes('Accepted') || text.includes('Success')) {
-            isAccepted = true;
-            break;
+      // LeetCode DOM check
+      if (hostname.includes('leetcode.')) {
+        const successSelectors = [
+          '[data-e2e-locator="submission-result"]',
+          '.text-green-s',
+          '.text-sd-success-500',
+          'span[class*="success"]',
+          'div[data-e2e-locator="submission-result"]',
+        ];
+
+        let isAccepted = false;
+        for (const selector of successSelectors) {
+          const el = document.querySelector(selector);
+          if (el) {
+            const text = el.textContent || '';
+            if (text.includes('Accepted') || text.includes('Success')) {
+              isAccepted = true;
+              break;
+            }
+          }
+        }
+
+        if (isAccepted) {
+          const urlMatch = window.location.href.match(/submissions\/(\d+)/);
+          if (urlMatch) {
+            const subId = urlMatch[1];
+            await handleAcceptedSubmission({
+              submissionId: subId,
+              code: '',
+              lang: '',
+              timestamp: Math.floor(Date.now() / 1000),
+              question: null,
+            }, false);
           }
         }
       }
 
-      if (!isAccepted) return;
-
-      // Try to extract submission ID from the URL hash or page
-      const urlMatch = window.location.href.match(/submissions\/(\d+)/);
-      if (urlMatch) {
-        const subId = urlMatch[1];
-        await handleAcceptedSubmission({
-          submissionId: subId,
-          code: '',
-          lang: '',
-          timestamp: Math.floor(Date.now() / 1000),
-          question: null,
-        }, false);
+      // Codeforces DOM check fallback
+      if (hostname.includes('codeforces.')) {
+        const cfAccepted = document.querySelector('.verdict-accepted, span.verdict-accepted, .verdict-successful');
+        if (cfAccepted) {
+          const contestMatch = window.location.pathname.match(/(?:contest|problemset\/problem)\/(\d+)\/([A-Z0-9]+)/i);
+          if (contestMatch) {
+            await handleCodeforcesSubmission({
+              submissionId: `dom_${Date.now()}`,
+              contestId: contestMatch[1],
+              index: contestMatch[2],
+            });
+          }
+        }
       }
     } catch (e) {
       // Silently ignore fallback errors
