@@ -126,18 +126,21 @@ export class CommitQueue {
         shas: Record<string, Record<string, string>>;
         solved: number;
         codesync_state?: string;
+        platforms?: Record<string, number>;
       }
       let workingStats: StatsData = {
         shas: {},
         solved: 0,
+        platforms: {},
       };
 
       if (context.statsContent) {
         try {
           workingStats = JSON.parse(context.statsContent);
           if (!workingStats.shas) workingStats.shas = {};
+          if (!workingStats.platforms) workingStats.platforms = {};
         } catch {
-          workingStats = { shas: {}, solved: 0 };
+          workingStats = { shas: {}, solved: 0, platforms: {} };
         }
       }
 
@@ -172,7 +175,7 @@ export class CommitQueue {
         const problem = submission.problem;
         const fileExtension = this.getFileExtension(submission.language);
         const layout = settings.folderLayout || 'difficulty';
-        const platform = submission.platform || problem.platform || 'leetcode';
+        const platform = (submission.platform || problem.platform || 'leetcode').toLowerCase();
         let problemFolder = `${problem.slug}`;
         if (layout === 'platform') {
           problemFolder = `${platform}/${problem.slug}`;
@@ -182,6 +185,9 @@ export class CommitQueue {
 
         const codePath = `${problemFolder}/${problem.slug}.${fileExtension}`;
         const readmePath = `${problemFolder}/README.md`;
+
+        // Check if this problem slug was already tracked
+        const isNewProblem = !workingStats.shas[problem.slug];
 
         // Generate problem README and update table in memory
         const readmeContent = ReadmeGenerator.generate(problem, submission, null);
@@ -200,16 +206,28 @@ export class CommitQueue {
         };
         delete workingStats.shas[problem.slug]["difficulty"];
 
+        if (isNewProblem) {
+          if (!workingStats.platforms) workingStats.platforms = {};
+          workingStats.platforms[platform] = (workingStats.platforms[platform] || 0) + 1;
+        }
+
         const singleFilesToCommit: { path: string; content: string }[] = [
           { path: codePath, content: submission.code },
           { path: readmePath, content: readmeContent }
         ];
 
         // Finalize Root README and stats.json
-        const finalReadme = workingReadme || '# LeetCode Solutions\n';
+        const finalReadme = workingReadme || '# Solutions\n';
         const rootReadmeSha = await computeGitSha(finalReadme);
         workingStats.shas["README.md"] = { "": rootReadmeSha };
         workingStats.solved = Object.keys(workingStats.shas).filter(k => k !== 'README.md' && k !== 'stats.json').length;
+
+        // Ensure platforms total reflects solved count
+        if (!workingStats.platforms) workingStats.platforms = {};
+        const recordedPlatformTotal = Object.values(workingStats.platforms).reduce((sum, count) => sum + (count || 0), 0);
+        if (recordedPlatformTotal < workingStats.solved) {
+          workingStats.platforms.leetcode = (workingStats.platforms.leetcode || 0) + (workingStats.solved - recordedPlatformTotal);
+        }
 
         const themeData = await getLocalStorage('themeId');
         const activeThemeId = (themeData as { themeId?: string }).themeId || settings.theme || 'amoled';
@@ -241,7 +259,7 @@ export class CommitQueue {
           { path: 'stats.json', content: statsStr }
         );
 
-        const commitMessage = `feat(leetcode): add solution for ${problem.title}`;
+        const commitMessage = `feat(${platform}): add solution for ${problem.title}`;
         const authorDate = submission.timestamp ? new Date(submission.timestamp).toISOString() : undefined;
 
         console.log(`[CodeSync:Queue] Creating commit for ${problem.title} with timestamp: ${authorDate}`);
@@ -267,9 +285,12 @@ export class CommitQueue {
         problemTitles.push(problem.title);
       }
 
-      // Update local stats count once after batch completion
+      // Update local stats count and platforms breakdown once after batch completion
       if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        await chrome.storage.local.set({ codesync_solved_count: workingStats.solved });
+        await chrome.storage.local.set({
+          codesync_solved_count: workingStats.solved,
+          codesync_platform_stats: workingStats.platforms,
+        });
       }
 
       // Clean up individual submission data from storage in parallel
@@ -383,6 +404,4 @@ export class CommitQueue {
       }).catch(() => {});
     }
   }
-
-
 }

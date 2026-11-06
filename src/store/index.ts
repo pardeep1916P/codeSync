@@ -8,9 +8,12 @@ import { getExtensionVersion } from '../utils/version';
 
 let isListenerRegistered = false;
 
+export type PlatformStats = Record<string, number>;
+
 interface RepoStatsResult {
   solved: number;
   settings?: Partial<UserSettings>;
+  platforms?: Record<string, number>;
 }
 
 export function parseRepoCodesyncState(stats: Record<string, unknown> | null | undefined): Partial<UserSettings> | null {
@@ -50,19 +53,26 @@ async function fetchRepoSolvedCount(client: GitHubClient, repoFullName: string):
     if (statsFile) {
       const stats = JSON.parse(statsFile.content);
       const solved = typeof stats.solved === 'number' ? stats.solved : 0;
+      const platforms: Record<string, number> = (stats.platforms && typeof stats.platforms === 'object')
+        ? stats.platforms
+        : (solved > 0 ? { leetcode: solved } : {});
+
       if (typeof stats.solved === 'number') {
-        await setLocalStorage({ codesync_solved_count: stats.solved });
+        await setLocalStorage({
+          codesync_solved_count: stats.solved,
+          codesync_platform_stats: platforms,
+        });
       }
       const repoSettings = parseRepoCodesyncState(stats);
       if (repoSettings?.theme) {
         await setLocalStorage({ themeId: repoSettings.theme });
       }
-      return { solved, settings: repoSettings || undefined };
+      return { solved, settings: repoSettings || undefined, platforms };
     }
   } catch {
     // stats.json may not exist yet
   }
-  return { solved: 0 };
+  return { solved: 0, platforms: {} };
 }
 
 interface AppState extends UserSettings {
@@ -72,6 +82,7 @@ interface AppState extends UserSettings {
   repositories: GitHubRepo[];
   error: string | null;
   solvedCount: number;
+  platformStats: Record<string, number>;
   updateInfo: { version: string } | null;
   isCheckingUpdate: boolean;
   showWhatsNew: boolean;
@@ -109,6 +120,7 @@ export const useStore = create<AppState>((set, get) => ({
   repositories: [],
   error: null,
   solvedCount: 0,
+  platformStats: {},
   updateInfo: null,
   isCheckingUpdate: false,
   showWhatsNew: false,
@@ -119,10 +131,17 @@ export const useStore = create<AppState>((set, get) => ({
       const updateInfo = await storage.getUpdateInfo();
 
       // Phase 1: Load cached user/repos instantly
-      const cached = await getLocalStorage(['cached_user', 'cached_repos', 'codesync_solved_count', 'codesync_is_syncing']);
+      const cached = await getLocalStorage([
+        'cached_user',
+        'cached_repos',
+        'codesync_solved_count',
+        'codesync_platform_stats',
+        'codesync_is_syncing',
+      ]);
       const cachedUser = (cached.cached_user as GitHubUser) || null;
       const cachedRepos = (cached.cached_repos as GitHubRepo[]) || [];
       const cachedSolvedCount = typeof cached.codesync_solved_count === 'number' ? cached.codesync_solved_count : 0;
+      const cachedPlatformStats = (cached.codesync_platform_stats as Record<string, number>) || {};
       const cachedIsSyncing = typeof cached.codesync_is_syncing === 'boolean' ? cached.codesync_is_syncing : false;
 
       const currentVersion = getExtensionVersion();
@@ -138,6 +157,7 @@ export const useStore = create<AppState>((set, get) => ({
         user: cachedUser,
         repositories: cachedRepos,
         solvedCount: cachedSolvedCount,
+        platformStats: cachedPlatformStats,
         isSyncing: cachedIsSyncing,
         isLoading: false,
         error: null,
@@ -172,6 +192,10 @@ export const useStore = create<AppState>((set, get) => ({
               console.log('[CodeSync:Store] solvedCount changed to:', changes.codesync_solved_count.newValue);
               set({ solvedCount: changes.codesync_solved_count.newValue });
             }
+            if (changes.codesync_platform_stats) {
+              console.log('[CodeSync:Store] platformStats changed to:', changes.codesync_platform_stats.newValue);
+              set({ platformStats: changes.codesync_platform_stats.newValue || {} });
+            }
             if (changes.updateInfo) {
               set({ updateInfo: changes.updateInfo.newValue || null });
             }
@@ -194,7 +218,12 @@ export const useStore = create<AppState>((set, get) => ({
 
           if (settings.selectedRepo) {
             const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
-            if (statsResult.solved > 0) set({ solvedCount: statsResult.solved });
+            if (statsResult.solved > 0) {
+              set({
+                solvedCount: statsResult.solved,
+                platformStats: statsResult.platforms || (statsResult.solved > 0 ? { leetcode: statsResult.solved } : {}),
+              });
+            }
           }
         } catch (err) {
           console.warn('[CodeSync:Store] Phase 2 GitHub API error:', err);
@@ -226,18 +255,25 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       let solvedCount = 0;
+      let platformStats: Record<string, number> = {};
       let repoSettings: Partial<UserSettings> | undefined;
       const settings = await storage.getSettings();
       if (settings.selectedRepo) {
         const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
         solvedCount = statsResult.solved;
+        platformStats = statsResult.platforms || (solvedCount > 0 ? { leetcode: solvedCount } : {});
         repoSettings = statsResult.settings;
         if (repoSettings && Object.keys(repoSettings).length > 0) {
           await storage.updateSettings(repoSettings);
         }
       }
 
-      await setLocalStorage({ cached_user: user, cached_repos: repositories, codesync_solved_count: solvedCount });
+      await setLocalStorage({
+        cached_user: user,
+        cached_repos: repositories,
+        codesync_solved_count: solvedCount,
+        codesync_platform_stats: platformStats,
+      });
 
       set({
         githubToken: token,
@@ -245,6 +281,7 @@ export const useStore = create<AppState>((set, get) => ({
         user,
         repositories,
         solvedCount,
+        platformStats,
         ...(repoSettings || {}),
         isLoading: false,
         error: null,
@@ -260,25 +297,17 @@ export const useStore = create<AppState>((set, get) => ({
   loginOAuth: async () => {
     set({ isLoading: true, error: null });
     try {
-      const oauth = new GitHubOAuth({
-        clientId: import.meta.env.VITE_GITHUB_CLIENT_ID || '',
-        proxyUrl: import.meta.env.VITE_OAUTH_PROXY_URL || 'https://codesync-oauth.chaitanyacharan07.workers.dev',
-        scopes: ['repo'],
-      });
-      const token = await oauth.authenticate();
-      if (token) {
-        await get().login(token);
-      } else {
-        set({ isLoading: false, error: 'OAuth authentication failed or returned empty token' });
-      }
+      const token = await GitHubOAuth.startAuthFlow();
+      await get().login(token);
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false });
+      const errorMsg = (e as Error).message || 'OAuth authentication failed';
+      set({ error: errorMsg, isLoading: false });
     }
   },
 
   logout: async () => {
     await storage.clearSettings();
-    await removeLocalStorage(['cached_user', 'cached_repos', 'codesync_solved_count']);
+    await removeLocalStorage(['cached_user', 'cached_repos', 'codesync_solved_count', 'codesync_platform_stats']);
     await setLocalStorage({ codesync_is_syncing: false });
 
     set({
@@ -290,6 +319,7 @@ export const useStore = create<AppState>((set, get) => ({
       user: null,
       repositories: [],
       solvedCount: 0,
+      platformStats: {},
       isLoading: false,
       isSyncing: false,
     });
@@ -300,6 +330,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ selectedRepo: repoFullName, isLoading: true });
 
     let solvedCount = 0;
+    let platformStats: Record<string, number> = {};
     let repoSettings: Partial<UserSettings> | undefined;
     const token = get().githubToken;
     if (token) {
@@ -307,6 +338,7 @@ export const useStore = create<AppState>((set, get) => ({
         const client = new GitHubClient(token);
         const statsResult = await fetchRepoSolvedCount(client, repoFullName);
         solvedCount = statsResult.solved;
+        platformStats = statsResult.platforms || (solvedCount > 0 ? { leetcode: solvedCount } : {});
         repoSettings = statsResult.settings;
         if (repoSettings && Object.keys(repoSettings).length > 0) {
           await storage.updateSettings(repoSettings);
@@ -319,7 +351,7 @@ export const useStore = create<AppState>((set, get) => ({
       }
     }
 
-    set({ solvedCount, ...(repoSettings || {}), isLoading: false });
+    set({ solvedCount, platformStats, ...(repoSettings || {}), isLoading: false });
   },
 
   setSyncOnAccept: async (value: boolean) => {
@@ -394,11 +426,13 @@ export const useStore = create<AppState>((set, get) => ({
       });
 
       let solved = get().solvedCount;
+      let platformStats = get().platformStats;
       let repoSettings: Partial<UserSettings> | undefined;
       const settings = await storage.getSettings();
       if (settings.selectedRepo) {
         const statsResult = await fetchRepoSolvedCount(client, settings.selectedRepo);
         solved = statsResult.solved;
+        platformStats = statsResult.platforms || (solved > 0 ? { leetcode: solved } : {});
         repoSettings = statsResult.settings;
         if (repoSettings && Object.keys(repoSettings).length > 0) {
           await storage.updateSettings(repoSettings);
@@ -410,6 +444,7 @@ export const useStore = create<AppState>((set, get) => ({
         repositories,
         githubUser: user.login,
         solvedCount: solved,
+        platformStats,
         ...(repoSettings || {}),
         error: null
       });
@@ -452,4 +487,3 @@ export const useStore = create<AppState>((set, get) => ({
     });
   },
 }));
-
