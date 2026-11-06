@@ -297,11 +297,19 @@ export const useStore = create<AppState>((set, get) => ({
   loginOAuth: async () => {
     set({ isLoading: true, error: null });
     try {
-      const token = await GitHubOAuth.startAuthFlow();
-      await get().login(token);
+      const oauth = new GitHubOAuth({
+        clientId: import.meta.env.VITE_GITHUB_CLIENT_ID || '',
+        proxyUrl: import.meta.env.VITE_OAUTH_PROXY_URL || 'https://codesync-oauth.chaitanyacharan07.workers.dev',
+        scopes: ['repo'],
+      });
+      const token = await oauth.authenticate();
+      if (token) {
+        await get().login(token);
+      } else {
+        set({ isLoading: false, error: 'OAuth authentication failed or returned empty token' });
+      }
     } catch (e) {
-      const errorMsg = (e as Error).message || 'OAuth authentication failed';
-      set({ error: errorMsg, isLoading: false });
+      set({ error: (e as Error).message, isLoading: false });
     }
   },
 

@@ -5,6 +5,7 @@ import { Header } from './components/Header';
 import { UpdateBanner } from './components/UpdateBanner';
 import { UserProfileCard } from './components/UserProfileCard';
 import { RepoSelector } from './components/RepoSelector';
+import { PlatformStatsAggregator } from './components/PlatformStatsAggregator';
 import { SyncControl } from './components/SyncControl';
 import { AuthForm } from './components/AuthForm';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -306,6 +307,13 @@ export const Popup: React.FC = () => {
               setIsRepoDropdownOpen={setIsRepoDropdownOpen}
               onSelectRepo={(repo) => store.selectRepo(repo)}
               activeTheme={activeTheme}
+            />
+
+            <PlatformStatsAggregator
+              platformStats={store.platformStats}
+              totalSolved={store.solvedCount}
+              activeTheme={activeTheme}
+              selectedRepo={store.selectedRepo}
             />
 
             <SyncControl
