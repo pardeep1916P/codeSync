@@ -10,8 +10,8 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
   });
 
   describe('RELEASE_NOTES data integrity', () => {
-    it('contains comprehensive highlights for version 1.2.2', () => {
-      const notes = RELEASE_NOTES['1.2.2'];
+    it('contains comprehensive highlights for version 1.3.0', () => {
+      const notes = RELEASE_NOTES['1.3.0'];
       expect(notes).toBeDefined();
       expect(notes.length).toBeGreaterThanOrEqual(3);
 
@@ -20,6 +20,12 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
         expect(item.title).toBeTruthy();
         expect(item.description).toBeTruthy();
       });
+    });
+
+    it('contains comprehensive highlights for version 1.2.2', () => {
+      const notes = RELEASE_NOTES['1.2.2'];
+      expect(notes).toBeDefined();
+      expect(notes.length).toBeGreaterThanOrEqual(3);
     });
 
     it('contains historic release highlights for version 1.2.1', () => {
@@ -31,7 +37,7 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
 
   describe('useStore What\'s New lifecycle', () => {
     it('sets showWhatsNew to true when lastSeenVersion differs from currentVersion', async () => {
-      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.2.2');
+      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.3.0');
       vi.spyOn(storage, 'getSettings').mockResolvedValue({
         schemaVersion: 2,
         githubToken: null,
@@ -41,7 +47,7 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
         syncHistoricalOnView: false,
         desktopNotifications: false,
         folderLayout: 'difficulty',
-        lastSeenVersion: '1.2.1', // Older version
+        lastSeenVersion: '1.2.2', // Older version
         commitQueue: [],
       });
       vi.spyOn(storage, 'getUpdateInfo').mockResolvedValue(null);
@@ -52,7 +58,7 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
     });
 
     it('sets showWhatsNew to false when lastSeenVersion matches currentVersion', async () => {
-      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.2.2');
+      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.3.0');
       vi.spyOn(storage, 'getSettings').mockResolvedValue({
         schemaVersion: 2,
         githubToken: null,
@@ -62,7 +68,7 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
         syncHistoricalOnView: false,
         desktopNotifications: false,
         folderLayout: 'difficulty',
-        lastSeenVersion: '1.2.2', // Same version
+        lastSeenVersion: '1.3.0', // Same version
         commitQueue: [],
       });
       vi.spyOn(storage, 'getUpdateInfo').mockResolvedValue(null);
@@ -73,7 +79,7 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
     });
 
     it('dismisses modal and persists currentVersion on dismissWhatsNew()', async () => {
-      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.2.2');
+      vi.spyOn(versionUtil, 'getExtensionVersion').mockReturnValue('1.3.0');
       const updateSettingsSpy = vi.spyOn(storage, 'updateSettings').mockResolvedValue({
         schemaVersion: 2,
         githubToken: null,
@@ -83,18 +89,18 @@ describe("Post-Upgrade What's New State & Release Notes", () => {
         syncHistoricalOnView: false,
         desktopNotifications: false,
         folderLayout: 'difficulty',
-        lastSeenVersion: '1.2.2',
+        lastSeenVersion: '1.3.0',
         commitQueue: [],
       });
 
       // Set initial open state
-      useStore.setState({ showWhatsNew: true, lastSeenVersion: '1.2.1' });
+      useStore.setState({ showWhatsNew: true, lastSeenVersion: '1.2.2' });
 
       await useStore.getState().dismissWhatsNew();
 
-      expect(updateSettingsSpy).toHaveBeenCalledWith({ lastSeenVersion: '1.2.2' });
+      expect(updateSettingsSpy).toHaveBeenCalledWith({ lastSeenVersion: '1.3.0' });
       expect(useStore.getState().showWhatsNew).toBe(false);
-      expect(useStore.getState().lastSeenVersion).toBe('1.2.2');
+      expect(useStore.getState().lastSeenVersion).toBe('1.3.0');
     });
   });
 });
