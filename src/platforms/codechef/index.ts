@@ -17,7 +17,7 @@ export class CodeChefAdapter implements PlatformAdapter {
     if (lang.includes('c#') || lang.includes('csharp')) return 'cs';
     if (lang === 'c' || lang.startsWith('c ') || lang.includes('gcc')) return 'c';
     if (lang.includes('java')) return 'java';
-    if (lang.includes('python') || lang.includes('py3') || lang.includes('pypy')) return 'py';
+    if (lang.includes('python') || lang.includes('pyth') || lang.includes('py3') || lang.includes('pypy')) return 'py';
     if (lang.includes('javascript') || lang.includes('node') || lang.includes('js')) return 'js';
     if (lang.includes('typescript') || lang.includes('ts')) return 'ts';
     if (lang.includes('rust')) return 'rs';
