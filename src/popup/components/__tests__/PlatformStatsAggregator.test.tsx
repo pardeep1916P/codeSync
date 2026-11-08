@@ -6,14 +6,17 @@ import { THEMES } from '../../../styles/themes';
 describe('PlatformStatsAggregator Component', () => {
   const activeTheme = THEMES.amoled;
 
-  it('renders null when no repository is selected', () => {
+  it('renders prompt message when no repository is selected', () => {
     const result = PlatformStatsAggregator({
       platformStats: {},
       totalSolved: 0,
       activeTheme,
       selectedRepo: null,
     });
-    expect(result).toBeNull();
+    expect(result).not.toBeNull();
+    expect(React.isValidElement(result)).toBe(true);
+    const element = result as React.ReactElement<{ children: string }>;
+    expect(element.props.children).toContain('Select a target repository');
   });
 
   it('renders stats element tree when repository is selected', () => {

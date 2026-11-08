@@ -66,35 +66,53 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
   activeTheme,
   selectedRepo,
 }) => {
-  if (!selectedRepo) return null;
+  if (!selectedRepo) {
+    return (
+      <div 
+        className="text-xs font-bold italic p-4 rounded-xl border" 
+        style={{ 
+          backgroundColor: activeTheme.cardBg, 
+          borderColor: activeTheme.border, 
+          color: activeTheme.text,
+          opacity: 0.7 
+        }}
+      >
+        Select a target repository to view multi-platform activity.
+      </div>
+    );
+  }
 
   return (
     <div
-      className="border rounded-2xl p-3 flex flex-col gap-2.5 transition-all duration-200"
+      className="border rounded-2xl p-5 flex flex-col gap-4 transition-all duration-200"
       style={{
         backgroundColor: activeTheme.cardBg,
         borderColor: activeTheme.border,
       }}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <span
-            className="w-1.5 h-1.5 rounded-full"
+            className="w-2 h-2 rounded-full"
             style={{ backgroundColor: activeTheme.accent }}
           />
-          <span className="text-[9px] font-bold tracking-wider uppercase opacity-60">
-            PLATFORM_ACTIVITY
+          <span className="text-xs font-bold tracking-wider uppercase opacity-70">
+            PLATFORM_ACTIVITY_METRICS
           </span>
         </div>
         <span
-          className="text-[9px] font-extrabold tracking-wide uppercase"
-          style={{ color: activeTheme.accent }}
+          className="text-xs font-extrabold tracking-wide uppercase px-2.5 py-1 rounded-lg border font-mono"
+          style={{ 
+            color: activeTheme.accent,
+            borderColor: activeTheme.border,
+            backgroundColor: activeTheme.inputBg,
+          }}
         >
-          TOTAL: {totalSolved}
+          TOTAL SOLVED: {totalSolved}
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {PLATFORMS.map((platform) => {
           const count = platformStats[platform.key] || 0;
           const hasCount = count > 0;
@@ -103,26 +121,31 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
             <div
               key={platform.key}
               title={`${platform.name}: ${count} solved`}
-              className="flex items-center justify-between px-2 py-1.5 rounded-xl border transition-all duration-150"
+              className="flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all duration-150"
               style={{
                 backgroundColor: hasCount ? platform.bg : 'rgba(255,255,255,0.02)',
                 borderColor: hasCount ? platform.border : activeTheme.border,
               }}
             >
+              <div className="flex flex-col gap-0.5">
+                <span
+                  className="text-xs font-bold tracking-wide"
+                  style={{
+                    color: hasCount ? platform.color : activeTheme.text,
+                    opacity: hasCount ? 1 : 0.5,
+                  }}
+                >
+                  {platform.name}
+                </span>
+                <span className="text-[9px] font-mono opacity-50 uppercase tracking-wider">
+                  {platform.shortCode}
+                </span>
+              </div>
               <span
-                className="text-[9px] font-extrabold tracking-wider"
-                style={{
-                  color: hasCount ? platform.color : activeTheme.text,
-                  opacity: hasCount ? 1 : 0.45,
-                }}
-              >
-                {platform.shortCode}
-              </span>
-              <span
-                className="text-[10px] font-mono font-bold"
+                className="text-sm font-mono font-black"
                 style={{
                   color: hasCount ? activeTheme.textHighlight : activeTheme.text,
-                  opacity: hasCount ? 1 : 0.45,
+                  opacity: hasCount ? 1 : 0.4,
                 }}
               >
                 {count}

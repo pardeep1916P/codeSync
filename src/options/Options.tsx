@@ -6,6 +6,7 @@ import { THEMES, getSavedThemeId } from '../styles/themes';
 import { Switch } from '../components/ui/switch';
 import { Label } from '../components/ui/label';
 import { FolderLayout } from '../storage';
+import { PlatformStatsAggregator } from '../popup/components/PlatformStatsAggregator';
 
 interface LayoutOption {
   id: FolderLayout;
@@ -395,9 +396,20 @@ export const Options: React.FC = () => {
           </div>
         </section>
 
+        {/* Multi-Platform Activity Breakdown */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">3. Platform Activity Breakdown</h2>
+          <PlatformStatsAggregator
+            platformStats={store.platformStats}
+            totalSolved={store.solvedCount}
+            activeTheme={activeTheme}
+            selectedRepo={store.selectedRepo}
+          />
+        </section>
+
         {/* Synchronization Preferences */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">3. Synchronization Rules</h2>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Synchronization Rules</h2>
           <div className="border rounded-2xl p-5 flex flex-col gap-5" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
             {/* Instant Sync on Accept Toggle */}
             <div className="flex items-center justify-between gap-4">
@@ -467,7 +479,7 @@ export const Options: React.FC = () => {
 
         {/* Directory Customization */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">4. Repository Structure Layout</h2>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">5. Repository Structure Layout</h2>
           <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.cardBg, borderColor: activeTheme.border }}>
             <p className="text-xs leading-relaxed opacity-60">
               Select how solution files and folders are structured inside your repository.
@@ -534,7 +546,7 @@ export const Options: React.FC = () => {
 
         {/* Reset / Backup */}
         <section className="flex flex-col gap-3">
-          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">5. Danger Zone</h2>
+          <h2 className="text-xs font-bold tracking-wider uppercase opacity-55">6. Danger Zone</h2>
           <div className="border rounded-2xl p-5 flex flex-col gap-4" style={{ backgroundColor: activeTheme.dangerBg, borderColor: activeTheme.dangerBorder }}>
             <div className="flex items-center justify-between pb-3 border-b" style={{ borderColor: activeTheme.dangerBorder }}>
               <div className="pr-4">
