@@ -69,7 +69,7 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
   if (!selectedRepo) {
     return (
       <div 
-        className="text-xs font-bold italic p-4 rounded-xl border" 
+        className="border rounded-2xl p-5 text-xs font-bold italic leading-relaxed" 
         style={{ 
           backgroundColor: activeTheme.cardBg, 
           borderColor: activeTheme.border, 
@@ -77,10 +77,14 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
           opacity: 0.7 
         }}
       >
-        Select a target repository to view multi-platform activity.
+        Select a target repository above to view multi-platform activity breakdown.
       </div>
     );
   }
+
+  const effectiveStats: Record<string, number> = (platformStats && Object.keys(platformStats).length > 0)
+    ? platformStats
+    : (totalSolved > 0 ? { leetcode: totalSolved } : {});
 
   return (
     <div
@@ -90,69 +94,117 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
         borderColor: activeTheme.border,
       }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: activeTheme.accent }}
-          />
-          <span className="text-xs font-bold tracking-wider uppercase opacity-70">
-            PLATFORM_ACTIVITY_METRICS
-          </span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+        <div>
+          <p className="text-xs leading-relaxed opacity-60">
+            Real-time solution counts synchronized to <span className="font-bold font-mono" style={{ color: activeTheme.textHighlight }}>{selectedRepo}</span>.
+          </p>
         </div>
-        <span
-          className="text-xs font-extrabold tracking-wide uppercase px-2.5 py-1 rounded-lg border font-mono"
+        <div 
+          className="self-start sm:self-auto px-3 py-1 rounded-xl border flex items-center gap-2 font-mono shrink-0"
           style={{ 
-            color: activeTheme.accent,
-            borderColor: activeTheme.border,
-            backgroundColor: activeTheme.inputBg,
+            backgroundColor: activeTheme.inputBg, 
+            borderColor: activeTheme.border 
           }}
         >
-          TOTAL SOLVED: {totalSolved}
-        </span>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: activeTheme.accent }}></span>
+          <span className="text-xs font-bold uppercase tracking-wider" style={{ color: activeTheme.accent }}>
+            Total Solved: {totalSolved}
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {PLATFORMS.map((platform) => {
-          const count = platformStats[platform.key] || 0;
+          const count = effectiveStats[platform.key] || 0;
           const hasCount = count > 0;
 
           return (
             <div
               key={platform.key}
               title={`${platform.name}: ${count} solved`}
-              className="flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all duration-150"
+              className="flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150"
               style={{
-                backgroundColor: hasCount ? platform.bg : 'rgba(255,255,255,0.02)',
+                backgroundColor: hasCount ? platform.bg : activeTheme.inputBg,
                 borderColor: hasCount ? platform.border : activeTheme.border,
               }}
             >
-              <div className="flex flex-col gap-0.5">
-                <span
-                  className="text-xs font-bold tracking-wide"
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0"
                   style={{
+                    backgroundColor: hasCount ? platform.bg : 'rgba(255,255,255,0.04)',
                     color: hasCount ? platform.color : activeTheme.text,
-                    opacity: hasCount ? 1 : 0.5,
+                    border: `1px solid ${hasCount ? platform.border : activeTheme.border}`,
                   }}
                 >
-                  {platform.name}
-                </span>
-                <span className="text-[9px] font-mono opacity-50 uppercase tracking-wider">
                   {platform.shortCode}
-                </span>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span
+                    className="text-xs font-bold truncate"
+                    style={{
+                      color: hasCount ? activeTheme.textHighlight : activeTheme.text,
+                      opacity: hasCount ? 1 : 0.6,
+                    }}
+                  >
+                    {platform.name}
+                  </span>
+                  <span className="text-[10px] font-mono opacity-40 uppercase tracking-wider">
+                    {hasCount ? 'Active' : 'No Submissions'}
+                  </span>
+                </div>
               </div>
-              <span
-                className="text-sm font-mono font-black"
-                style={{
-                  color: hasCount ? activeTheme.textHighlight : activeTheme.text,
-                  opacity: hasCount ? 1 : 0.4,
-                }}
-              >
-                {count}
-              </span>
+              <div className="flex items-baseline gap-1 pl-2 shrink-0">
+                <span
+                  className="text-sm font-black font-mono"
+                  style={{
+                    color: hasCount ? activeTheme.textHighlight : activeTheme.text,
+                    opacity: hasCount ? 1 : 0.4,
+                  }}
+                >
+                  {count}
+                </span>
+                <span className="text-[9px] font-mono opacity-40 uppercase">solved</span>
+              </div>
             </div>
           );
         })}
+
+        {/* Aggregate Summary Card (6th Card for perfect 2-column symmetry) */}
+        <div
+          className="flex items-center justify-between p-3.5 rounded-xl border transition-all duration-150"
+          style={{
+            backgroundColor: totalSolved > 0 ? 'rgba(16, 185, 129, 0.08)' : activeTheme.inputBg,
+            borderColor: totalSolved > 0 ? 'rgba(16, 185, 129, 0.25)' : activeTheme.border,
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0"
+              style={{
+                backgroundColor: activeTheme.accent,
+                color: activeTheme.bg,
+              }}
+            >
+              ALL
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold truncate" style={{ color: activeTheme.textHighlight }}>
+                Total Solutions
+              </span>
+              <span className="text-[10px] font-mono opacity-40 uppercase tracking-wider">
+                5 Platforms
+              </span>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1 pl-2 shrink-0">
+            <span className="text-sm font-black font-mono" style={{ color: activeTheme.accent }}>
+              {totalSolved}
+            </span>
+            <span className="text-[9px] font-mono opacity-40 uppercase">total</span>
+          </div>
+        </div>
       </div>
     </div>
   );
