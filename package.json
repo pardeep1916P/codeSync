@@ -7,6 +7,7 @@
     "dev": "vite build --watch --mode development",
     "build:dev": "tsc && vite build --mode development",
     "build": "tsc && vite build --mode production",
+    "build:docs": "node scripts/generate_docs_landing.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest",

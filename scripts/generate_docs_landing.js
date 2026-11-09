@@ -1,0 +1,1516 @@
+// scripts/generate_docs_landing.js
+import fs from 'fs';
+import path from 'path';
+
+const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="CodeSync — Automatically sync accepted coding problem solutions from LeetCode, Codeforces, HackerRank, GeeksforGeeks, and CodeChef to GitHub in real time.">
+  <meta name="keywords" content="CodeSync, LeetCode, Codeforces, HackerRank, GeeksforGeeks, CodeChef, GitHub, Chrome extension, Edge extension, auto-sync, competitive programming">
+  <meta name="author" content="pardeep1916P">
+  
+  <!-- Open Graph / Social Media -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="CodeSync — Auto-Sync Coding Solutions to GitHub">
+  <meta property="og:description" content="Lightweight Manifest V3 extension syncing your accepted solutions directly to your personal GitHub repository with authentic contribution timestamps.">
+  <meta property="og:image" content="./assets/showcase.png">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:title" content="CodeSync — Auto-Sync Coding Solutions to GitHub">
+  <meta property="twitter:description" content="Lightweight Manifest V3 extension syncing your accepted solutions directly to your personal GitHub repository.">
+  <meta property="twitter:image" content="./assets/showcase.png">
+
+  <title>CodeSync — Real-Time Solution Auto-Sync to GitHub</title>
+  <link rel="icon" type="image/png" href="./assets/store_icon_128.png">
+
+  <style>
+    /* ----------------------------------------------------
+       Design Tokens & CSS Variables
+       ---------------------------------------------------- */
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0f19;
+      --bg-gradient: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.12) 0%, rgba(11, 15, 25, 0) 70%),
+                     radial-gradient(circle at 85% 30%, rgba(56, 189, 248, 0.08) 0%, rgba(11, 15, 25, 0) 50%);
+      --surface: rgba(18, 24, 38, 0.7);
+      --surface-hover: rgba(26, 34, 54, 0.85);
+      --surface-card: #131b2e;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(255, 255, 255, 0.18);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --text-sub: #64748b;
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.25);
+      --accent-blue: #38bdf8;
+      --accent-purple: #818cf8;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-full: 9999px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      --shadow-glow: 0 0 40px -10px rgba(16, 185, 129, 0.2);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --bg-gradient: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, rgba(248, 250, 252, 0) 70%);
+        --surface: rgba(255, 255, 255, 0.85);
+        --surface-hover: #ffffff;
+        --surface-card: #ffffff;
+        --border: rgba(0, 0, 0, 0.08);
+        --border-hover: rgba(0, 0, 0, 0.16);
+        --text-main: #0f172a;
+        --text-muted: #475569;
+        --text-sub: #94a3b8;
+        --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+      }
+    }
+
+    /* ----------------------------------------------------
+       Base Resets & Global Styles
+       ---------------------------------------------------- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--text-main);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* ----------------------------------------------------
+       Container & Layout
+       ---------------------------------------------------- */
+    .container {
+      width: 100%;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ----------------------------------------------------
+       Header & Navigation
+       ---------------------------------------------------- */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+
+    .nav-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+    }
+
+    .brand-badge {
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      font-size: 0.925rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-main);
+    }
+
+    .nav-cta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      transition: all 0.2s ease;
+    }
+
+    .btn-github:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--accent);
+      color: #042f1a;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: #059669;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px var(--accent-glow);
+    }
+
+    /* ----------------------------------------------------
+       Hero Section
+       ---------------------------------------------------- */
+    .hero {
+      padding: 72px 0 60px;
+      text-align: center;
+    }
+
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      font-size: 0.825rem;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      margin-bottom: 24px;
+    }
+
+    .hero-pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.9); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 3.8rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      margin-bottom: 20px;
+      max-width: 860px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 .highlight {
+      background: linear-gradient(135deg, #10b981 0%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+      color: var(--text-muted);
+      max-width: 680px;
+      margin: 0 auto 36px;
+      font-weight: 400;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+
+    .hero-actions .btn-primary {
+      padding: 13px 28px;
+      font-size: 1rem;
+      border-radius: var(--radius-md);
+    }
+
+    .hero-actions .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 13px 26px;
+      font-size: 1rem;
+      font-weight: 600;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      border-radius: var(--radius-md);
+      transition: all 0.2s ease;
+    }
+
+    .hero-actions .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-1px);
+    }
+
+    /* Showcase Screenshot Preview */
+    .hero-showcase {
+      position: relative;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card), var(--shadow-glow);
+    }
+
+    .hero-showcase img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: calc(var(--radius-lg) - 6px);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* ----------------------------------------------------
+       Platform Filters & Navigation Controls
+       ---------------------------------------------------- */
+    .section-title-wrap {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .section-title {
+      font-size: clamp(1.8rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+
+    .section-subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: var(--radius-full);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--text-main);
+      color: var(--bg);
+      border-color: var(--text-main);
+    }
+
+    /* ----------------------------------------------------
+       Cards Grid (Platforms & Stores)
+       ---------------------------------------------------- */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 72px;
+    }
+
+    .card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-card);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card-icon-box {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      padding: 10px;
+    }
+
+    .card-icon-box svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    .card-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.725rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-live {
+      background: rgba(16, 185, 129, 0.12);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-edge {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .badge-verified {
+      background: rgba(249, 115, 22, 0.12);
+      color: #fb923c;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    .badge-github {
+      background: rgba(129, 140, 248, 0.12);
+      color: #818cf8;
+      border: 1px solid rgba(129, 140, 248, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .card-category {
+      font-size: 0.775rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+
+    .card-description {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+
+    .card-features {
+      list-style: none;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .card-features li {
+      font-size: 0.825rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-features li svg {
+      width: 14px;
+      height: 14px;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-action-primary {
+      flex: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: var(--text-main);
+      color: var(--bg);
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .btn-action-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-action-secondary {
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .btn-action-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      border-color: var(--border-hover);
+    }
+
+    /* ----------------------------------------------------
+       Screenshots & Features Section
+       ---------------------------------------------------- */
+    .screenshots-section {
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .screenshot-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-top: 36px;
+    }
+
+    .screenshot-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .screenshot-card:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-card);
+      border-color: var(--border-hover);
+    }
+
+    .screenshot-card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      object-position: top;
+      display: block;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .screenshot-info {
+      padding: 18px;
+    }
+
+    .screenshot-info h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .screenshot-info p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ----------------------------------------------------
+       Feature Highlights
+       ---------------------------------------------------- */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin: 48px 0;
+    }
+
+    .feature-item {
+      padding: 24px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+    }
+
+    .feature-icon {
+      font-size: 1.8rem;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .feature-item h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .feature-item p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ----------------------------------------------------
+       Quick Setup Steps
+       ---------------------------------------------------- */
+    .steps-section {
+      padding: 60px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 36px;
+    }
+
+    .step-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 24px;
+      position: relative;
+    }
+
+    .step-num {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.9rem;
+      margin-bottom: 16px;
+    }
+
+    .step-card h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step-card p {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* ----------------------------------------------------
+       Footer
+       ---------------------------------------------------- */
+    footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      padding: 48px 0 32px;
+    }
+
+    .footer-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+    }
+
+    .footer-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      transition: color 0.15s ease;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-main);
+    }
+
+    .footer-bottom {
+      text-align: center;
+      font-size: 0.825rem;
+      color: var(--text-sub);
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    /* ----------------------------------------------------
+       Toast Notification (for copy actions)
+       ---------------------------------------------------- */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-card);
+      border: 1px solid var(--accent);
+      color: var(--text-main);
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* ----------------------------------------------------
+       Responsive Adjustments
+       ---------------------------------------------------- */
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+      .hero {
+        padding: 48px 0 40px;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .footer-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container">
+      <div class="nav-wrapper">
+        <a href="#" class="brand" aria-label="CodeSync Home">
+          <img src="./assets/store_icon_128.png" alt="CodeSync Logo" width="36" height="36">
+          <span>CodeSync</span>
+          <span class="brand-badge">v1.3.0 Live</span>
+        </a>
+
+        <ul class="nav-links">
+          <li><a href="#stores">Browser Stores</a></li>
+          <li><a href="#coding-platforms">Supported Platforms</a></li>
+          <li><a href="#screenshots">Showcase</a></li>
+          <li><a href="#architecture">Architecture</a></li>
+          <li><a href="https://github.com/pardeep1916P/codeSync" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        </ul>
+
+        <div class="nav-cta">
+          <a href="https://github.com/pardeep1916P/codeSync" target="_blank" rel="noopener noreferrer" class="btn-github" aria-label="Star CodeSync on GitHub">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+            </svg>
+            <span>Star</span>
+          </a>
+          <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer" class="btn-primary">
+            <span>Install</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main>
+    <section class="hero">
+      <div class="container">
+        <div class="hero-pill">
+          <span class="hero-pill-dot"></span>
+          <span>Manifest V3 • Real-Time Git Trees Auto-Sync</span>
+        </div>
+
+        <h1>
+          Sync Your Coding Solutions to <span class="highlight">GitHub Automatically</span>
+        </h1>
+
+        <p>
+          Effortlessly build an active developer portfolio while you practice. CodeSync captures your accepted solutions across competitive programming platforms and commits them directly to your personal GitHub repository.
+        </p>
+
+        <div class="hero-actions">
+          <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer" class="btn-primary">
+            <svg width="20" height="20" viewBox="-10 -10 276 276" fill="currentColor">
+              <circle cx="128" cy="128" r="64" fill="#fff"/>
+              <path fill="#34a853" d="M96 183.4A63.7 63.7 0 0 1 72.6 160L17.2 64A128 128 0 0 0 128 256l55.4-96A64 64 0 0 1 96 183.4Z"/>
+              <path fill="#fbbc04" d="M192 128a63.7 63.7 0 0 1-8.6 32L128 256A128 128 0 0 0 238.9 64h-111a64 64 0 0 1 64 64Z"/>
+              <circle cx="128" cy="128" r="52" fill="#1a73e8"/>
+              <path fill="#ea4335" d="M96 72.6a63.7 63.7 0 0 1 32-8.6h110.8a128 128 0 0 0-221.7 0l55.5 96A64 64 0 0 1 96 72.6Z"/>
+            </svg>
+            <span>Add to Chrome</span>
+          </a>
+
+          <a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            <svg width="20" height="20" viewBox="0 0 27600 27600">
+              <path fill="#0c59a4" d="M24105 20053a9345 9345 0 01-1053 472 10202 10202 0 01-3590 646c-4732 0-8855-3255-8855-7432 0-1175 680-2193 1643-2729-4280 180-5380 4640-5380 7253 0 7387 6810 8137 8276 8137 791 0 1984-230 2704-456l130-44a12834 12834 0 006660-5282c220-350-168-757-535-565z"/>
+              <path fill="#0078d4" d="M11571 25141a7913 7913 0 01-2273-2137 8145 8145 0 01-1514-4740 8093 8093 0 013093-6395 8082 8082 0 011373-859c312-148 846-414 1554-404a3236 3236 0 012569 1297 3184 3184 0 01636 1866c0-21 2446-7960-8005-7960-4390 0-8004 4166-8004 7820 0 2319 538 4170 1212 5604a12833 12833 0 007684 6757 12795 12795 0 003908 610c1414 0 2774-233 4045-656a7575 7575 0 01-6278-803z"/>
+              <path fill="#35c1f1" d="M16231 15886c-80 105-330 250-330 566 0 260 170 512 472 723 1438 1003 4149 868 4156 868a5954 5954 0 003027-839 6147 6147 0 001133-850 6180 6180 0 001910-4437c26-2242-796-3732-1133-4392-2120-4141-6694-6525-11668-6525-7011 0-12703 5635-12798 12620 47-3654 3679-6605 7996-6605 350 0 2346 34 4200 1007 1634 858 2490 1894 3086 2921 618 1067 728 2415 728 2952s-271 1333-780 1990z"/>
+            </svg>
+            <span>Get for Edge</span>
+          </a>
+
+          <a href="https://github.com/pardeep1916P/codeSync/releases" target="_blank" rel="noopener noreferrer" class="btn-secondary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+            </svg>
+            <span>Releases (.zip)</span>
+          </a>
+        </div>
+
+        <!-- Showcase Product Screenshot -->
+        <div class="hero-showcase">
+          <img src="./assets/showcase.png" alt="CodeSync Showcase Screenshot" width="836" height="470" loading="eager">
+        </div>
+      </div>
+    </section>
+
+    <!-- Platform Directory Section -->
+    <section id="stores" class="container" style="padding: 40px 24px 60px;">
+      <div class="section-title-wrap">
+        <h2 class="section-title">Extension Downloads & Store Listings</h2>
+        <p class="section-subtitle">
+          Install CodeSync directly from your favorite browser's official web store with seamless updates.
+        </p>
+      </div>
+
+      <div class="filter-tabs" role="tablist">
+        <button class="tab-btn active" data-filter="all" role="tab">All Extensions & Platforms</button>
+        <button class="tab-btn" data-filter="browser" role="tab">Browser Stores</button>
+        <button class="tab-btn" data-filter="coding" role="tab">Supported Coding Platforms</button>
+      </div>
+
+      <!-- Unified Grid -->
+      <div class="grid" id="platform-grid">
+
+        <!-- Chrome Web Store -->
+        <div class="card" data-category="browser">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box">
+                <svg viewBox="-10 -10 276 276">
+                  <circle cx="128" cy="128" r="64" fill="#fff"/>
+                  <path fill="#34a853" d="M96 183.4A63.7 63.7 0 0 1 72.6 160L17.2 64A128 128 0 0 0 128 256l55.4-96A64 64 0 0 1 96 183.4Z"/>
+                  <path fill="#fbbc04" d="M192 128a63.7 63.7 0 0 1-8.6 32L128 256A128 128 0 0 0 238.9 64h-111a64 64 0 0 1 64 64Z"/>
+                  <circle cx="128" cy="128" r="52" fill="#1a73e8"/>
+                  <path fill="#ea4335" d="M96 72.6a63.7 63.7 0 0 1 32-8.6h110.8a128 128 0 0 0-221.7 0l55.5 96A64 64 0 0 1 96 72.6Z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Live on Store</span>
+            </div>
+            <div class="card-category">Official Chrome Store</div>
+            <h3 class="card-title">Google Chrome</h3>
+            <p class="card-description">
+              Official store listing for Chrome desktop users. Seamless auto-updates, Manifest V3 compliant, and sandboxed execution.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>ID: <code style="font-family: var(--font-mono); font-size: 0.75rem;">abdemced...fbljd</code></span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Zero telemetry, verified privacy policy</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Install for Chrome</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" aria-label="Copy Chrome Web Store Link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Microsoft Edge Add-ons -->
+        <div class="card" data-category="browser">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box">
+                <svg viewBox="0 0 27600 27600">
+                  <path fill="#0c59a4" d="M24105 20053a9345 9345 0 01-1053 472 10202 10202 0 01-3590 646c-4732 0-8855-3255-8855-7432 0-1175 680-2193 1643-2729-4280 180-5380 4640-5380 7253 0 7387 6810 8137 8276 8137 791 0 1984-230 2704-456l130-44a12834 12834 0 006660-5282c220-350-168-757-535-565z"/>
+                  <path fill="#0078d4" d="M11571 25141a7913 7913 0 01-2273-2137 8145 8145 0 01-1514-4740 8093 8093 0 013093-6395 8082 8082 0 011373-859c312-148 846-414 1554-404a3236 3236 0 012569 1297 3184 3184 0 01636 1866c0-21 2446-7960-8005-7960-4390 0-8004 4166-8004 7820 0 2319 538 4170 1212 5604a12833 12833 0 007684 6757 12795 12795 0 003908 610c1414 0 2774-233 4045-656a7575 7575 0 01-6278-803z"/>
+                  <path fill="#35c1f1" d="M16231 15886c-80 105-330 250-330 566 0 260 170 512 472 723 1438 1003 4149 868 4156 868a5954 5954 0 003027-839 6147 6147 0 001133-850 6180 6180 0 001910-4437c26-2242-796-3732-1133-4392-2120-4141-6694-6525-11668-6525-7011 0-12703 5635-12798 12620 47-3654 3679-6605 7996-6605 350 0 2346 34 4200 1007 1634 858 2490 1894 3086 2921 618 1067 728 2415 728 2952s-271 1333-780 1990z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-edge">Edge Live</span>
+            </div>
+            <div class="card-category">Microsoft Store</div>
+            <h3 class="card-title">Microsoft Edge</h3>
+            <p class="card-description">
+              Official Edge Add-on. Native Windows integration, fast synchronization, and tested across all Chromium Edge channels.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>ID: <code style="font-family: var(--font-mono); font-size: 0.75rem;">mhfhhccg...hhmj</code></span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Verified by Microsoft Partner Center</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Get for Edge</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj" aria-label="Copy Edge Store Link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Brave Browser -->
+        <div class="card" data-category="browser">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box">
+                <svg viewBox="0 0 24 24" fill="#fb542b">
+                  <path d="M15.68 0l2.096 2.38s1.84-.512 2.709.358c.868.87 1.584 1.638 1.584 1.638l-.562 1.381.715 2.047s-2.104 7.98-2.35 8.955c-.486 1.919-.818 2.66-2.198 3.633-1.38.972-3.884 2.66-4.293 2.916-.409.256-.92.692-1.38.692-.46 0-.97-.436-1.38-.692a185.796 185.796 0 01-4.293-2.916c-1.38-.973-1.712-1.714-2.197-3.633-.247-.975-2.351-8.955-2.351-8.955l.715-2.047-.562-1.381s.716-.768 1.585-1.638c.868-.87 2.708-.358 2.708-.358L8.321 0h7.36zm-3.679 14.936c-.14 0-1.038.317-1.758.69-.72.373-1.242.637-1.409.742-.167.104-.065.301.087.409.152.107 2.194 1.69 2.393 1.866.198.175.489.464.687.464.198 0 .49-.29.688-.464.198-.175 2.24-1.759 2.392-1.866.152-.108.254-.305.087-.41-.167-.104-.689-.368-1.41-.741-.72-.373-1.617-.69-1.757-.69z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-verified">Verified</span>
+            </div>
+            <div class="card-category">Chromium Compatible</div>
+            <h3 class="card-title">Brave Browser</h3>
+            <p class="card-description">
+              Fully verified with Brave Shields. Install directly via the Chrome Web Store with zero tracking or script conflicts.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Compatible with Brave Shields</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>One-click Web Store installation</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Install for Brave</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" aria-label="Copy Web Store Link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Opera Browser -->
+        <div class="card" data-category="browser">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box">
+                <svg viewBox="0 0 1090 1090">
+                  <path fill="#ff1b2d" d="M545 42.5a502.5 502.5 0 10334.9 877.1 362.4 362.4 0 01-201.4 61.5c-119.7 0-226.8-59.4-299-153-55.6-65.6-91.5-162.5-94-271.3V533c2.5-108.8 38.4-205.8 94-271.3 72-93.6 179.3-153 299-153 73.6 0 142.5 22.5 201.4 61.6a500.8 500.8 0 00-333-127.9h-2z"/>
+                  <path fill="#ff4b4b" d="M379.6 261.8c46-54.4 105.7-87.3 170.7-87.3 146.3 0 265 166 265 370.4 0 204.6-118.6 370.4-265 370.4-65 0-124.6-32.8-170.7-87.2 72 93.6 179.2 153 299 153A363 363 0 00880 919.6 501 501 0 001047.5 545a501.1 501.1 0 00-167.6-374.6 362.4 362.4 0 00-201.4-61.5c-119.7 0-226.8 59.4-299 153"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-verified">Verified</span>
+            </div>
+            <div class="card-category">Chromium Compatible</div>
+            <h3 class="card-title">Opera / Opera GX</h3>
+            <p class="card-description">
+              Works seamlessly with Opera and Opera GX gaming browser via Chrome Web Store compatibility.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Fast background service worker</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Zero memory overhead</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Install for Opera</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" aria-label="Copy Web Store Link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- GitHub Releases / Developer Mode -->
+        <div class="card" data-category="browser">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-github">Open Source</span>
+            </div>
+            <div class="card-category">Direct Download</div>
+            <h3 class="card-title">GitHub Releases</h3>
+            <p class="card-description">
+              Download the standalone pre-packaged <code style="font-family: var(--font-mono); font-size: 0.8rem;">.zip</code> bundle or clone the source code for manual unpacked loading.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Latest release: v1.3.0 bundle</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Full TypeScript source on GitHub</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://github.com/pardeep1916P/codeSync/releases" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>View Releases</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://github.com/pardeep1916P/codeSync/releases" aria-label="Copy Releases Link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- LeetCode -->
+        <div class="card" data-category="coding">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box" style="background: rgba(255, 161, 22, 0.1); border-color: rgba(255, 161, 22, 0.3);">
+                <svg viewBox="0 0 24 24" fill="#FFA116">
+                  <path d="M13.483 0a1.374 1.374 0 0 0-.961.438L7.116 6.226l-3.854 4.126a5.266 5.266 0 0 0-1.209 2.104 5.35 5.35 0 0 0-.125.513 5.527 5.527 0 0 0 .062 2.362 5.83 5.83 0 0 0 .349 1.017 5.938 5.938 0 0 0 1.271 1.818l4.277 4.193.039.038c2.248 2.165 5.852 2.133 8.063-.074l2.396-2.392c.54-.54.54-1.414.003-1.955a1.378 1.378 0 0 0-1.951-.003l-2.396 2.392a3.021 3.021 0 0 1-4.205.038l-.02-.019-4.276-4.193c-.652-.64-.972-1.469-.948-2.263a2.68 2.68 0 0 1 .066-.523 2.545 2.545 0 0 1 .619-1.164L9.13 8.114c1.058-1.134 3.204-1.27 4.43-.278l3.501 2.831c.593.48 1.461.387 1.94-.207a1.384 1.384 0 0 0-.207-1.943l-3.5-2.831c-.8-.647-1.766-1.045-2.774-1.202l2.015-2.158A1.384 1.384 0 0 0 13.483 0zm-2.866 12.815a1.38 1.38 0 0 0-1.38 1.382 1.38 1.38 0 0 0 1.38 1.382H20.79a1.38 1.38 0 0 0 1.38-1.382 1.38 1.38 0 0 0-1.38-1.382z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Auto-Sync Live</span>
+            </div>
+            <div class="card-category">Coding Platform</div>
+            <h3 class="card-title">LeetCode</h3>
+            <p class="card-description">
+              Real-time GraphQL submission interception, difficulty normalization (Easy, Medium, Hard), and automatic runtime & memory metric capture.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Instant status_code: 10 detection</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Automated README table index generator</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://leetcode.com" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Visit LeetCode</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://leetcode.com" aria-label="Copy LeetCode URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Codeforces -->
+        <div class="card" data-category="coding">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box" style="background: rgba(49, 140, 231, 0.1); border-color: rgba(49, 140, 231, 0.3);">
+                <svg viewBox="0 0 24 24">
+                  <path fill="#FFD43B" d="M4.5 7.5C5.328 7.5 6 8.172 6 9v10.5c0 .828-.672 1.5-1.5 1.5h-3C.673 21 0 20.328 0 19.5V9c0-.828.673-1.5 1.5-1.5h3z"/>
+                  <path fill="#318CE7" d="M13.5 3c.828 0 1.5.672 1.5 1.5v15c0 .828-.672 1.5-1.5 1.5h-3c-.827 0-1.5-.672-1.5-1.5v-15c0-.828.673-1.5 1.5-1.5h3z"/>
+                  <path fill="#ED1B24" d="M22.5 10.5c.828 0 1.5.672 1.5 1.5v7.5c0 .828-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.672-1.5-1.5V12c0-.828.672-1.5 1.5-1.5h3z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Auto-Sync Live</span>
+            </div>
+            <div class="card-category">Coding Platform</div>
+            <h3 class="card-title">Codeforces</h3>
+            <p class="card-description">
+              Contest and problemset detection. Parses problem index, contest ID, language normalization, and tracks submission verdicts.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Supports live contest submissions</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Authentic submission ID tracking</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://codeforces.com" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Visit Codeforces</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://codeforces.com" aria-label="Copy Codeforces URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- CodeChef -->
+        <div class="card" data-category="coding">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box" style="background: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.3);">
+                <svg viewBox="0 0 24 24" fill="#D97706">
+                  <path d="M11.2574.0039c-.37.0101-.7353.041-1.1003.095C9.6164.153 9.0766.4236 8.482.694c-.757.3244-1.5147.6486-2.2176.7027-1.1896.3785-1.568.919-1.8925 1.3516 0 .054-.054.1079-.054.1079-.4325.865-.4873 1.73-.325 2.5952.1621.5407.3786 1.0282.5408 1.5148.3785 1.0274.7578 2.0007.92 3.1362.1622.3244.3235.7571.4316 1.1897.2704.8651.542 1.8383 1.353 2.5952l.0057-.0028c.0175.0183.0301.0387.0482.0568.0072-.0036.0141-.0063.0213-.0099l-.0213-.5849c.6489-.9733 1.5673-1.6221 2.865-1.8925.5195-.1093 1.081-.1497 1.6625-.1278a8.7733 8.7733 0 0 1 1.7988.2357c1.4599.3785 2.595 1.1358 2.6492 1.7846.0273.3549.0398.6952.0326 1.0364-.001.064-.0046.1285-.007.193l.1362.0682c.075-.0375.1424-.107.2059-.1902.0008-.001.002-.002.0028-.0028.0018-.0023.0039-.0061.0057-.0085.0396-.0536.0747-.1236.1107-.1931.0188-.0377.0372-.0866.0554-.1292.2048-.4622.362-1.1536.538-1.9635.0541-.2703.1092-.4864.1633-.7027.4326-.9733 1.0266-1.8382 1.6213-2.6492.9733-1.3518 1.8928-2.5962 1.7846-4.0561-1.784-3.4608-4.2718-4.0017-5.5695-4.272-.2163-.0541-.3233-.0539-.4856-.108-1.3382-.2433-2.4945-.3953-3.6046-.3648z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Auto-Sync Live</span>
+            </div>
+            <div class="card-category">Coding Platform</div>
+            <h3 class="card-title">CodeChef</h3>
+            <p class="card-description">
+              Detects practice and challenge submissions, extracts clean problem codes, and handles multi-language compiler extensions.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Handles Cook-Off and Starters challenges</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Automated problem slug sanitization</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://www.codechef.com" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Visit CodeChef</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://www.codechef.com" aria-label="Copy CodeChef URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- HackerRank -->
+        <div class="card" data-category="coding">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box" style="background: rgba(0, 234, 100, 0.1); border-color: rgba(0, 234, 100, 0.3);">
+                <svg viewBox="0 0 24 24" fill="#00EA64">
+                  <path d="M0 0v24h24V0zm9.95 8.002h1.805c.061 0 .111.05.111.111v7.767c0 .061-.05.111-.11.111H9.95c-.061 0-.111-.05-.111-.11v-2.87H7.894v2.87c0 .06-.05.11-.11.11H5.976a.11.11 0 01-.11-.11V8.112c0-.06.05-.11.11-.11h1.806c.061 0 .11.05.11.11v2.869H9.84v-2.87c0-.06.05-.11.11-.11zm2.999 0h5.778c.061 0 .111.05.111.11v7.767a.11.11 0 01-.11.112h-5.78a.11.11 0 01-.11-.11V8.111c0-.06.05-.11.11-.11z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Auto-Sync Live</span>
+            </div>
+            <div class="card-category">Coding Platform</div>
+            <h3 class="card-title">HackerRank</h3>
+            <p class="card-description">
+              Parses problem challenges, test cases, and difficulty ratings. Captures solutions across algorithms, data structures, and SQL tracks.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Tracks domain tracks and skill badges</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Full SQL & Database solution support</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://www.hackerrank.com" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Visit HackerRank</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://www.hackerrank.com" aria-label="Copy HackerRank URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- GeeksforGeeks -->
+        <div class="card" data-category="coding">
+          <div>
+            <div class="card-header">
+              <div class="card-icon-box" style="background: rgba(47, 141, 70, 0.12); border-color: rgba(47, 141, 70, 0.3);">
+                <svg viewBox="0 0 24 24" fill="#2F8D46">
+                  <path d="M21.45 14.315c-.143.28-.334.532-.565.745a3.691 3.691 0 0 1-1.104.695 4.51 4.51 0 0 1-3.116-.016 3.79 3.79 0 0 1-2.135-2.078 3.571 3.571 0 0 1-.13-.353h7.418a4.26 4.26 0 0 1-.368 1.008zm-11.99-.654a3.793 3.793 0 0 1-2.134 2.078 4.51 4.51 0 0 1-3.117.016 3.7 3.7 0 0 1-1.104-.695 2.652 2.652 0 0 1-.564-.745 4.221 4.221 0 0 1-.368-1.006H9.59c-.038.12-.08.238-.13.352zm14.501-1.758a3.849 3.849 0 0 0-.082-.475l-9.634-.008a3.932 3.932 0 0 1 1.143-2.348c.363-.35.79-.625 1.26-.809a3.97 3.97 0 0 1 4.484.957l1.521-1.49a5.7 5.7 0 0 0-1.922-1.357 6.283 6.283 0 0 0-2.544-.49 6.35 6.35 0 0 0-2.405.457 6.007 6.007 0 0 0-1.963 1.276 6.142 6.142 0 0 0-1.325 1.94 5.862 5.862 0 0 0-.466 1.864h-.063a5.857 5.857 0 0 0-.467-1.865 6.13 6.13 0 0 0-1.325-1.939A6 6 0 0 0 8.21 6.34a6.698 6.698 0 0 0-4.949.031A5.708 5.708 0 0 0 1.34 7.73l1.52 1.49a4.166 4.166 0 0 1 4.484-.958c.47.184.898.46 1.26.81.368.36.66.792.859 1.268.146.344.242.708.285 1.08l-9.635.008A4.714 4.714 0 0 0 0 12.457a6.493 6.493 0 0 0 .345 2.127 4.927 4.927 0 0 0 1.08 1.783c.528.56 1.17 1 1.88 1.293a6.454 6.454 0 0 0 2.504.457c.824.005 1.64-.15 2.404-.457a5.986 5.986 0 0 0 1.964-1.277 6.116 6.116 0 0 0 1.686-3.076h.273a6.13 6.13 0 0 0 1.686 3.077 5.99 5.99 0 0 0 1.964 1.276 6.345 6.345 0 0 0 2.405.457 6.45 6.45 0 0 0 2.502-.457 5.42 5.42 0 0 0 1.882-1.293 4.928 4.928 0 0 0 1.08-1.783A6.52 6.52 0 0 0 24 12.457a4.757 4.757 0 0 0-.039-.554z"/>
+                </svg>
+              </div>
+              <span class="card-status-badge badge-live">Auto-Sync Live</span>
+            </div>
+            <div class="card-category">Coding Platform</div>
+            <h3 class="card-title">GeeksforGeeks</h3>
+            <p class="card-description">
+              Practice portal integration. Captures Problem of the Day (POTD), company tags, topic tags, and solution source code.
+            </p>
+            <ul class="card-features">
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Full POTD and practice portal support</span>
+              </li>
+              <li>
+                <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                <span>Clean markdown description parsing</span>
+              </li>
+            </ul>
+          </div>
+          <div class="card-footer">
+            <a href="https://www.geeksforgeeks.org" target="_blank" rel="noopener noreferrer" class="btn-action-primary">
+              <span>Visit GeeksforGeeks</span>
+            </a>
+            <button class="btn-action-secondary copy-btn" data-url="https://www.geeksforgeeks.org" aria-label="Copy GFG URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Visual Tour / Screenshots -->
+    <section id="screenshots" class="screenshots-section">
+      <div class="container">
+        <div class="section-title-wrap">
+          <h2 class="section-title">Designed for Modern Developers</h2>
+          <p class="section-subtitle">
+            A beautiful, distraction-free extension interface with 15+ curated themes and intuitive controls.
+          </p>
+        </div>
+
+        <div class="screenshot-gallery">
+          <div class="screenshot-card">
+            <img src="./assets/store_screenshot_1.png" alt="CodeSync Connection and Status Popup" loading="lazy">
+            <div class="screenshot-info">
+              <h4>Quick Connect & Live Status</h4>
+              <p>Connect your GitHub account in seconds with zero complicated setups or mandatory cloud servers.</p>
+            </div>
+          </div>
+
+          <div class="screenshot-card">
+            <img src="./assets/store_screenshot_2.png" alt="CodeSync Repository and Theme Configuration" loading="lazy">
+            <div class="screenshot-info">
+              <h4>Repository & Layout Configuration</h4>
+              <p>Organize by difficulty, platform, or flat directory structure with 15+ dark themes including AMOLED and Dracula.</p>
+            </div>
+          </div>
+
+          <div class="screenshot-card">
+            <img src="./assets/store_screenshot_3.png" alt="CodeSync Commit Queue and Activity History" loading="lazy">
+            <div class="screenshot-info">
+              <h4>Commit Queue & Solution History</h4>
+              <p>Manage, inspect, or manually sync pending solutions with detailed submission time and runtime telemetry.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Architecture & Features Highlights -->
+    <section id="architecture" class="container" style="padding: 60px 24px;">
+      <div class="section-title-wrap">
+        <h2 class="section-title">Built with Zero Compromise</h2>
+        <p class="section-subtitle">
+          Engineered as a robust, privacy-first Manifest V3 browser extension.
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-item">
+          <div class="feature-icon">⚡</div>
+          <h3>Sub-10ms Enqueue</h3>
+          <p>MAIN-world network interceptor captures accepted submissions instantly without slowing down problem solving or page responsiveness.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">🕒</div>
+          <h3>Authentic Timestamps</h3>
+          <p>Sets both author and committer dates to the authentic problem solve moment, accurately populating your GitHub contribution graph.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">🔒</div>
+          <h3>AES-GCM Encryption</h3>
+          <p>GitHub tokens are encrypted at rest with 256-bit AES-GCM via the Web Crypto API. No external servers or third-party databases ever see your data.</p>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-icon">📊</div>
+          <h3>Multi-Platform Aggregator</h3>
+          <p>Unified stats dashboard records real-time problem metrics across all supported platforms directly into your repository's <code style="font-family: var(--font-mono); font-size: 0.8rem;">stats.json</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Steps Section -->
+    <section class="steps-section">
+      <div class="container">
+        <div class="section-title-wrap">
+          <h2 class="section-title">Get Started in 60 Seconds</h2>
+          <p class="section-subtitle">Four simple steps to automate your GitHub coding portfolio.</p>
+        </div>
+
+        <div class="steps-grid">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h4>Install Extension</h4>
+            <p>Add CodeSync to Chrome, Edge, Brave, or Opera from their official stores.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h4>Connect GitHub</h4>
+            <p>Authenticate securely using GitHub OAuth or your Personal Access Token.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h4>Select Repository</h4>
+            <p>Pick an existing repository or create a new dedicated code solutions repository.</p>
+          </div>
+
+          <div class="step-card">
+            <div class="step-num">4</div>
+            <h4>Solve & Auto-Sync</h4>
+            <p>Solve coding problems as usual. CodeSync commits solutions and updates your README automatically!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img src="./assets/store_icon_128.png" alt="CodeSync Logo" width="28" height="28">
+          <span>CodeSync</span>
+        </div>
+
+        <ul class="footer-links">
+          <li><a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd" target="_blank" rel="noopener noreferrer">Chrome Store</a></li>
+          <li><a href="https://microsoftedge.microsoft.com/addons/detail/codesync/mhfhhccgklfjjgplmgkcoafobidjhhmj" target="_blank" rel="noopener noreferrer">Edge Add-ons</a></li>
+          <li><a href="https://github.com/pardeep1916P/codeSync" target="_blank" rel="noopener noreferrer">Source Code</a></li>
+          <li><a href="https://github.com/pardeep1916P/codeSync/blob/main/document.md" target="_blank" rel="noopener noreferrer">Developer Docs</a></li>
+          <li><a href="https://github.com/pardeep1916P/codeSync/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+          <li><a href="https://github.com/pardeep1916P/codeSync/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">Apache 2.0 License</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-bottom">
+        <p>© 2026 CodeSync. Open-source under the Apache License 2.0. Built for developers by developers.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Container -->
+  <div class="toast" id="copy-toast" role="status" aria-live="polite">
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="#10b981"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+    <span>Link copied to clipboard!</span>
+  </div>
+
+  <script>
+    // Platform / Browser Filter Tabs
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const cards = document.querySelectorAll('#platform-grid .card');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+
+        cards.forEach(card => {
+          if (filter === 'all' || card.dataset.category === filter) {
+            card.style.display = 'flex';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // Copy Link Buttons with Toast Feedback
+    const copyBtns = document.querySelectorAll('.copy-btn');
+    const toast = document.getElementById('copy-toast');
+    let toastTimeout;
+
+    copyBtns.forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const url = btn.dataset.url;
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.classList.add('show');
+          clearTimeout(toastTimeout);
+          toastTimeout = setTimeout(() => {
+            toast.classList.remove('show');
+          }, 2400);
+        } catch (err) {
+          console.error('Failed to copy: ', err);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+`;
+
+const outputPath = path.resolve('docs', 'index.html');
+fs.writeFileSync(outputPath, htmlContent, 'utf-8');
+console.log('Successfully generated docs/index.html');
