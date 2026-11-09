@@ -384,6 +384,47 @@
       margin: 0 auto;
     }
 
+    /* ----------------------------------------------------
+       Platform Filters & Navigation Controls
+       ---------------------------------------------------- */
+    .filter-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 28px;
+      margin-bottom: 36px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 9px 20px;
+      border-radius: var(--radius-full);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      border-color: var(--border-hover);
+      background: var(--surface-hover);
+    }
+
+    .tab-btn.active {
+      background: var(--text-main);
+      color: var(--bg);
+      border-color: var(--text-main);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -918,20 +959,31 @@
       </div>
     </section>
 
-    <!-- SECTION 1: Browser Extensions & Stores -->
-    <section id="stores" class="section-wrap">
+    <!-- SECTION 1: Unified Ecosystem (Browser Stores & Coding Platforms) -->
+    <section id="platforms" class="section-wrap" style="position: relative;">
+      <!-- Hidden anchor points for seamless navbar link scrolling -->
+      <div id="stores" style="position: absolute; top: -75px;"></div>
+      <div id="coding-platforms" style="position: absolute; top: -75px;"></div>
+
       <div class="container">
         <div class="section-title-wrap">
-          <span class="section-tag">Browser Downloads</span>
-          <h2 class="section-title">Official Extension Stores</h2>
+          <span class="section-tag">Supported Ecosystem</span>
+          <h2 class="section-title">Browser Stores & Coding Platforms</h2>
           <p class="section-subtitle">
-            Install CodeSync with automated silent background updates on all major Chromium browsers.
+            Install CodeSync on your preferred browser and auto-sync solutions across all major competitive programming portals.
           </p>
         </div>
 
-        <div class="grid">
+        <!-- Sleek Interactive Filter Tabs -->
+        <div class="filter-tabs" role="tablist">
+          <button class="tab-btn active" data-filter="all" role="tab" aria-selected="true">All (9)</button>
+          <button class="tab-btn" data-filter="browser" role="tab" aria-selected="false">Browser Stores (4)</button>
+          <button class="tab-btn" data-filter="coding" role="tab" aria-selected="false">Supported Platforms (5)</button>
+        </div>
+
+        <div class="grid" id="platform-grid">
           <!-- Chrome Web Store -->
-          <div class="card">
+          <div class="card" data-category="browser">
             <div>
               <div class="card-header">
                 <div class="card-icon-box">
@@ -972,7 +1024,7 @@
           </div>
 
           <!-- Microsoft Edge Add-ons -->
-          <div class="card">
+          <div class="card" data-category="browser">
             <div>
               <div class="card-header">
                 <div class="card-icon-box">
@@ -1011,7 +1063,7 @@
           </div>
 
           <!-- Brave Browser -->
-          <div class="card">
+          <div class="card" data-category="browser">
             <div>
               <div class="card-header">
                 <div class="card-icon-box">
@@ -1086,7 +1138,7 @@
           </div>
 
           <!-- GitHub Releases / Developer Mode -->
-          <div class="card">
+          <div class="card" data-category="browser">
             <div>
               <div class="card-header">
                 <div class="card-icon-box">
@@ -1121,24 +1173,9 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- SECTION 2: Supported Coding Platforms (Target of nav link #coding-platforms) -->
-    <section id="coding-platforms" class="section-wrap">
-      <div class="container">
-        <div class="section-title-wrap">
-          <span class="section-tag">Supported Platforms</span>
-          <h2 class="section-title">Competitive Programming Portals</h2>
-          <p class="section-subtitle">
-            CodeSync seamlessly detects accepted solutions and syncs them to your repository across these platforms.
-          </p>
-        </div>
-
-        <div class="grid">
           <!-- LeetCode -->
-          <div class="card">
+          <div class="card" data-category="coding">
             <div>
               <div class="card-header">
                 <div class="card-icon-box" style="background: rgba(255, 161, 22, 0.1); border-color: rgba(255, 161, 22, 0.3);">
@@ -1175,7 +1212,7 @@
           </div>
 
           <!-- Codeforces -->
-          <div class="card">
+          <div class="card" data-category="coding">
             <div>
               <div class="card-header">
                 <div class="card-icon-box" style="background: rgba(49, 140, 231, 0.1); border-color: rgba(49, 140, 231, 0.3);">
@@ -1214,7 +1251,7 @@
           </div>
 
           <!-- CodeChef -->
-          <div class="card">
+          <div class="card" data-category="coding">
             <div>
               <div class="card-header">
                 <div class="card-icon-box" style="background: rgba(217, 119, 6, 0.1); border-color: rgba(217, 119, 6, 0.3);">
@@ -1251,7 +1288,7 @@
           </div>
 
           <!-- HackerRank -->
-          <div class="card">
+          <div class="card" data-category="coding">
             <div>
               <div class="card-header">
                 <div class="card-icon-box" style="background: rgba(0, 234, 100, 0.1); border-color: rgba(0, 234, 100, 0.3);">
@@ -1288,7 +1325,7 @@
           </div>
 
           <!-- GeeksforGeeks -->
-          <div class="card">
+          <div class="card" data-category="coding">
             <div>
               <div class="card-header">
                 <div class="card-icon-box" style="background: rgba(47, 141, 70, 0.12); border-color: rgba(47, 141, 70, 0.3);">
@@ -1557,6 +1594,69 @@
       if (heroLabel) {
         heroLabel.textContent = browserInfo.label;
       }
+    }
+
+    // ----------------------------------------------------
+    // Platform / Browser Filter Tabs & Synchronized Navigation
+    // ----------------------------------------------------
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const cards = document.querySelectorAll('#platform-grid .card');
+
+    function filterPlatforms(filterCategory) {
+      tabBtns.forEach(btn => {
+        if (btn.dataset.filter === filterCategory) {
+          btn.classList.add('active');
+          btn.setAttribute('aria-selected', 'true');
+        } else {
+          btn.classList.remove('active');
+          btn.setAttribute('aria-selected', 'false');
+        }
+      });
+
+      cards.forEach(card => {
+        if (filterCategory === 'all' || card.dataset.category === filterCategory) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterPlatforms(btn.dataset.filter);
+      });
+    });
+
+    // Hash & Navbar Link Integration:
+    // When clicking "Browser Stores" or "Supported Platforms" in navbar or visiting hash,
+    // automatically activate corresponding tab and ensure correct cards are visible.
+    function syncHashFilter() {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#coding-platforms') {
+        filterPlatforms('coding');
+      } else if (hash === '#stores') {
+        filterPlatforms('browser');
+      } else if (hash === '#platforms') {
+        filterPlatforms('all');
+      }
+    }
+
+    window.addEventListener('hashchange', syncHashFilter);
+
+    // Navbar direct click bindings for instant responsiveness
+    document.querySelectorAll('a[href="#coding-platforms"]').forEach(link => {
+      link.addEventListener('click', () => filterPlatforms('coding'));
+    });
+    document.querySelectorAll('a[href="#stores"]').forEach(link => {
+      link.addEventListener('click', () => filterPlatforms('browser'));
+    });
+    document.querySelectorAll('a[href="#platforms"]').forEach(link => {
+      link.addEventListener('click', () => filterPlatforms('all'));
+    });
+
+    if (window.location.hash) {
+      syncHashFilter();
     }
 
     // ----------------------------------------------------
