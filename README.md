@@ -5,6 +5,9 @@
 </p>
 
 <p align="center">
+  <a href="https://pardeep1916p.github.io/codeSync/">
+    <img src="https://img.shields.io/badge/Live_Site-GitHub%20Pages-10B981?style=for-the-badge&logo=github&logoColor=white" alt="CodeSync Website" />
+  </a>
   <a href="https://chromewebstore.google.com/detail/codesync/abdemcedoopepnjfjdbgomcandofbljd">
     <img src="https://img.shields.io/chrome-web-store/v/abdemcedoopepnjfjdbgomcandofbljd?style=for-the-badge&logo=googlechrome&logoColor=white&label=Chrome%20Web%20Store&color=emerald" alt="Chrome Web Store" />
   </a>
