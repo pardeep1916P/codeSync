@@ -1,6 +1,7 @@
 import React from 'react';
 import { Theme } from '../../styles/themes';
 import {
+  PlatformIconProps,
   LeetCodeIcon,
   CodeforcesIcon,
   CodeChefIcon,
@@ -23,7 +24,7 @@ interface PlatformConfig {
   color: string;
   bg: string;
   border: string;
-  icon: React.FC<{ className?: string }>;
+  icon: React.FC<PlatformIconProps>;
 }
 
 const PLATFORMS: PlatformConfig[] = [
@@ -58,18 +59,18 @@ const PLATFORMS: PlatformConfig[] = [
     key: 'hackerrank',
     name: 'HackerRank',
     shortCode: 'HR',
-    color: '#10B981',
-    bg: 'rgba(16, 185, 129, 0.1)',
-    border: 'rgba(16, 185, 129, 0.25)',
+    color: '#00EA64',
+    bg: 'rgba(0, 234, 100, 0.1)',
+    border: 'rgba(0, 234, 100, 0.25)',
     icon: HackerRankIcon,
   },
   {
     key: 'geeksforgeeks',
     name: 'GeeksforGeeks',
     shortCode: 'GFG',
-    color: '#22C55E',
-    bg: 'rgba(34, 197, 94, 0.1)',
-    border: 'rgba(34, 197, 94, 0.25)',
+    color: '#2F8D46',
+    bg: 'rgba(47, 141, 70, 0.12)',
+    border: 'rgba(47, 141, 70, 0.28)',
     icon: GeeksforGeeksIcon,
   },
 ];
@@ -146,14 +147,14 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 p-2"
+                  className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 p-1.5"
                   style={{
                     backgroundColor: hasCount ? platform.bg : 'rgba(255,255,255,0.04)',
                     color: hasCount ? platform.color : activeTheme.text,
                     border: `1px solid ${hasCount ? platform.border : activeTheme.border}`,
                   }}
                 >
-                  <PlatformIconComponent className="w-5 h-5" />
+                  <PlatformIconComponent className="w-5 h-5" monochromatic={!hasCount} />
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span
@@ -196,7 +197,7 @@ export const PlatformStatsAggregator: React.FC<PlatformStatsAggregatorProps> = (
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 p-2"
+              className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 p-1.5"
               style={{
                 backgroundColor: totalSolved > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.04)',
                 color: activeTheme.accent,
